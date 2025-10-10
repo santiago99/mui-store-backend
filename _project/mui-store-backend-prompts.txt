@@ -1,0 +1,17 @@
+Back
+
+Add id, title, price and imageUrl to Product model. Add fields to migration
+
+Update database/factories/ProductFactory.php so it can create products with title, price and image
+
+Create resource class ProductResource and use it in ProductController
+
+Update ProductController so it can serve CRUD requests using  ProductResource
+
+
+
+
+
+
+
+
