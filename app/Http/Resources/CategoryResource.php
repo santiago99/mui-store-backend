@@ -14,24 +14,28 @@ class CategoryResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        \Illuminate\Support\Facades\Log::debug($this->ancestors->only(['name', 'id']));
         return [
             'id' => $this->id,
             'name' => $this->name,
             'slug' => $this->slug,
             'description' => $this->description,
-            'is_active' => $this->is_active,
-            'parent_id' => $this->parent_id,
-            'depth' => $this->depth,
-            'full_path' => $this->full_path,
-            'has_children' => $this->hasChildren(),
-            'is_leaf' => $this->isLeaf(),
-            'products_count' => $this->whenLoaded('products', function () {
-                return $this->products->count();
-            }),
-            'children' => CategoryResource::collection($this->whenLoaded('children')),
-            'parent' => new CategoryResource($this->whenLoaded('parent')),
-            'created_at' => $this->created_at->toDateTimeString(),
-            'updated_at' => $this->updated_at->toDateTimeString(),
+            'isActive' => $this->is_active,
+            'parentId' => $this->parent_id,
+            'isLeaf' => $this->isLeaf(),
+            'productsCount' => $this->whenCounted('products'),
+            // 'children' => CategoryResource::collection($this->children),
+            'children' => $this->whenLoaded('children', CategoryResource::collection($this->children)),
+            // 'parent' => new CategoryResource($this->whenLoaded('parent')),
+            'ancestors' => $this->whenLoaded('ancestors', $this->ancestors->map(
+                fn($ancestor) =>
+                [
+                    'id' => $ancestor->id,
+                    'name' => $ancestor->name,
+                ]
+            )),
+            'createdAt' => $this->created_at->toDateTimeString(),
+            'updatedAt' => $this->updated_at->toDateTimeString(),
         ];
     }
 }
