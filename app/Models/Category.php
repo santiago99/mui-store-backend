@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Kalnoy\Nestedset\NodeTrait;
+use Illuminate\Support\Str;
+
 
 class Category extends Model
 {
@@ -63,48 +65,33 @@ class Category extends Model
     /**
      * Get the full path of the category (e.g., "Electronics > Phones > Smartphones").
      */
-    public function getFullPathAttribute()
-    {
-        $ancestors = $this->ancestors()->pluck('name')->toArray();
-        $ancestors[] = $this->name;
-        
-        return implode(' > ', $ancestors);
-    }
+    // public function getFullPathAttribute()
+    // {
+    //     $ancestors = $this->ancestors()->pluck('name')->toArray();
+    //     $ancestors[] = $this->name;
+
+    //     return implode(' > ', $ancestors);
+    // }
 
     /**
      * Get the depth level of the category.
      */
-    public function getDepthAttribute()
-    {
-        return $this->ancestors()->count();
-    }
+    // public function getDepthAttribute()
+    // {
+    //     return $this->ancestors()->count();
+    // }
 
-    /**
-     * Check if category has children.
-     */
-    public function hasChildren()
-    {
-        return $this->children()->exists();
-    }
-
-    /**
-     * Check if category is a leaf (has no children).
-     */
-    public function isLeaf()
-    {
-        return !$this->hasChildren();
-    }
 
     /**
      * Get all products from this category and its descendants.
      */
-    public function getAllProducts()
-    {
-        $categoryIds = $this->descendants()->pluck('id')->toArray();
-        $categoryIds[] = $this->id;
-        
-        return Product::whereIn('category_id', $categoryIds);
-    }
+    // public function getAllProducts()
+    // {
+    //     $categoryIds = $this->descendants()->pluck('id')->toArray();
+    //     $categoryIds[] = $this->id;
+
+    //     return Product::whereIn('category_id', $categoryIds);
+    // }
 
     /**
      * Boot method to handle model events.
@@ -115,13 +102,13 @@ class Category extends Model
 
         static::creating(function ($category) {
             if (empty($category->slug)) {
-                $category->slug = \Str::slug($category->name);
+                $category->slug = Str::slug($category->name);
             }
         });
 
         static::updating(function ($category) {
             if ($category->isDirty('name') && empty($category->slug)) {
-                $category->slug = \Str::slug($category->name);
+                $category->slug = Str::slug($category->name);
             }
         });
     }
