@@ -5,28 +5,58 @@ namespace Database\Seeders;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\User;
+use App\Models\CartItem;
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
+    private static ?array $productIds = null;
+
+    private function getRandomProductId($count = 1): array
+    {
+        if (self::$productIds === null) {
+            self::$productIds = \App\Models\Product::pluck('id')->toArray();
+        }
+
+        $productIds = array_rand(self::$productIds, $count);
+        \Illuminate\Support\Facades\Log::debug($productIds);
+        return array_map(fn($id) => self::$productIds[$id], $productIds);
+    }
     /**
      * Seed the application's database.
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
-
         // Create categories first
         $this->createCategories();
 
         // Create products with categories
         Product::factory(100)->create();
+
+        $this->createUsersWithCartItems();
+        //User::factory(10)->hasCartItems(3)->create();
+    }
+
+    private function createUsersWithCartItems(): void
+    {
+        for ($i = 0; $i < 10; $i++) {
+            $itemsCount = mt_rand(0, 5);
+            if ($itemsCount > 0) {
+                $user = User::factory()->state([
+                    'email' => 'example' . $i . '@example.com',
+                ])->create();
+                foreach ($this->getRandomProductId($itemsCount) as $productId) {
+                    CartItem::factory()->for($user)->state([
+                        'product_id' => $productId,
+                    ])->create();
+                }
+            } else {
+                User::factory()->state([
+                    'email' => 'example' . $i . '@example.com',
+                ])->create();
+            }
+        }
     }
 
     /**

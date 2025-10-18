@@ -2,10 +2,10 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-//use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\Model;
 
+// use Illuminate\Notifications\Notifiable;
 
 class Product extends Model
 {
@@ -25,5 +25,13 @@ class Product extends Model
     public function category()
     {
         return $this->belongsTo(Category::class);
+    }
+
+    /**
+     * Get the cart items for the product.
+     */
+    public function cartItems()
+    {
+        return $this->hasMany(CartItem::class);
     }
 }
