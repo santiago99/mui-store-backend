@@ -13,15 +13,16 @@ class DatabaseSeeder extends Seeder
 {
     private static ?array $productIds = null;
 
-    private function getRandomProductId($count = 1): array
+    private function getRandomProductIds($count = 1): array
     {
         if (self::$productIds === null) {
             self::$productIds = \App\Models\Product::pluck('id')->toArray();
         }
 
-        $productIds = array_rand(self::$productIds, $count);
-        \Illuminate\Support\Facades\Log::debug($productIds);
-        return array_map(fn($id) => self::$productIds[$id], $productIds);
+        \Illuminate\Support\Facades\Log::debug(self::$productIds);
+        $randomProductIds = $count == 1 ? [array_rand(self::$productIds)] : array_rand(self::$productIds, $count);
+        \Illuminate\Support\Facades\Log::debug($randomProductIds);
+        return array_map(fn($id) => self::$productIds[$id], $randomProductIds);
     }
     /**
      * Seed the application's database.
@@ -46,7 +47,7 @@ class DatabaseSeeder extends Seeder
                 $user = User::factory()->state([
                     'email' => 'example' . $i . '@example.com',
                 ])->create();
-                foreach ($this->getRandomProductId($itemsCount) as $productId) {
+                foreach ($this->getRandomProductIds($itemsCount) as $productId) {
                     CartItem::factory()->for($user)->state([
                         'product_id' => $productId,
                     ])->create();

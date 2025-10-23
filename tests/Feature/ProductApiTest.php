@@ -18,17 +18,19 @@ describe('Product API CRUD Operations', function () {
             
             $response->assertStatus(200)
                 ->assertJsonStructure([
-                    'success',
                     'data' => [
                         '*' => [
                             'id',
+                            'sku',
                             'title',
                             'price',
                             'imageUrl',
                             'created_at',
                             'updated_at'
                         ]
-                    ]
+                    ],
+                    'links',
+                    'meta'
                 ])
                 ->assertJsonCount(3, 'data');
         });
@@ -37,10 +39,12 @@ describe('Product API CRUD Operations', function () {
             $response = $this->getJson('/api/v1/products');
             
             $response->assertStatus(200)
-                ->assertJson([
-                    'success' => true,
-                    'data' => []
-                ]);
+                ->assertJsonStructure([
+                    'data',
+                    'links',
+                    'meta'
+                ])
+                ->assertJsonCount(0, 'data');
         });
     });
     
@@ -56,10 +60,9 @@ describe('Product API CRUD Operations', function () {
             
             $response->assertStatus(201)
                 ->assertJsonStructure([
-                    'success',
-                    'message',
                     'data' => [
                         'id',
+                        'sku',
                         'title',
                         'price',
                         'imageUrl',
@@ -68,8 +71,6 @@ describe('Product API CRUD Operations', function () {
                     ]
                 ])
                 ->assertJson([
-                    'success' => true,
-                    'message' => 'Product created successfully',
                     'data' => [
                         'title' => 'Test Product',
                         'price' => 99.99,
@@ -133,9 +134,9 @@ describe('Product API CRUD Operations', function () {
             
             $response->assertStatus(200)
                 ->assertJsonStructure([
-                    'success',
                     'data' => [
                         'id',
+                        'sku',
                         'title',
                         'price',
                         'imageUrl',
@@ -144,7 +145,6 @@ describe('Product API CRUD Operations', function () {
                     ]
                 ])
                 ->assertJson([
-                    'success' => true,
                     'data' => [
                         'id' => $product->id,
                         'title' => 'Specific Product',
@@ -155,7 +155,7 @@ describe('Product API CRUD Operations', function () {
         });
         
         test('returns 404 for non-existent product', function () {
-            $response = $this->getJson('/api/v1/products/999');
+            $response = $this->getJson('/api/v1/products/00000000-0000-0000-0000-000000000000');
             
             $response->assertStatus(404);
         });
@@ -175,10 +175,9 @@ describe('Product API CRUD Operations', function () {
             
             $response->assertStatus(200)
                 ->assertJsonStructure([
-                    'success',
-                    'message',
                     'data' => [
                         'id',
+                        'sku',
                         'title',
                         'price',
                         'imageUrl',
@@ -187,8 +186,6 @@ describe('Product API CRUD Operations', function () {
                     ]
                 ])
                 ->assertJson([
-                    'success' => true,
-                    'message' => 'Product updated successfully',
                     'data' => [
                         'id' => $product->id,
                         'title' => 'Updated Product',
@@ -213,7 +210,6 @@ describe('Product API CRUD Operations', function () {
             
             $response->assertStatus(200)
                 ->assertJson([
-                    'success' => true,
                     'data' => [
                         'id' => $product->id,
                         'title' => 'Updated Title Only',
@@ -237,7 +233,7 @@ describe('Product API CRUD Operations', function () {
         });
         
         test('returns 404 when updating non-existent product', function () {
-            $response = $this->putJson('/api/v1/products/999', [
+            $response = $this->putJson('/api/v1/products/00000000-0000-0000-0000-000000000000', [
                 'title' => 'Updated Product'
             ]);
             
@@ -251,17 +247,13 @@ describe('Product API CRUD Operations', function () {
             
             $response = $this->deleteJson("/api/v1/products/{$product->id}");
             
-            $response->assertStatus(200)
-                ->assertJson([
-                    'success' => true,
-                    'message' => 'Product deleted successfully'
-                ]);
+            $response->assertStatus(204);
             
             $this->assertDatabaseMissing('products', ['id' => $product->id]);
         });
         
         test('returns 404 when deleting non-existent product', function () {
-            $response = $this->deleteJson('/api/v1/products/999');
+            $response = $this->deleteJson('/api/v1/products/00000000-0000-0000-0000-000000000000');
             
             $response->assertStatus(404);
         });

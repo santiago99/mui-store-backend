@@ -25,6 +25,7 @@ class UpdateProductRequest extends FormRequest
             'title' => 'sometimes|string|max:255',
             'price' => 'sometimes|numeric|min:0',
             'imageUrl' => 'sometimes|url|max:500',
+            'sku' => 'sometimes|string|unique:products,sku,' . $this->route('product'),
         ];
     }
 }

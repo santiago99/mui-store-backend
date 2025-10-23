@@ -26,6 +26,7 @@ class ProductFactory extends Factory
             'price' => $this->faker->randomFloat(2, 10, 1000),
             'imageUrl' => '',
             'category_id' => $this->getRandomLeafCategoryId(),
+            'sku' => $this->faker->uuid(),
         ];
     }
 
