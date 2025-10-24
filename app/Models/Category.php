@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Kalnoy\Nestedset\NodeTrait;
 use Illuminate\Support\Str;
@@ -9,7 +10,7 @@ use Illuminate\Support\Str;
 
 class Category extends Model
 {
-    use NodeTrait;
+    use HasFactory, NodeTrait;
 
     protected $fillable = [
         'name',
@@ -85,13 +86,13 @@ class Category extends Model
     /**
      * Get all products from this category and its descendants.
      */
-    // public function getAllProducts()
-    // {
-    //     $categoryIds = $this->descendants()->pluck('id')->toArray();
-    //     $categoryIds[] = $this->id;
+    public function getAllProducts()
+    {
+        $categoryIds = $this->descendants()->pluck('id')->toArray();
+        $categoryIds[] = $this->id;
 
-    //     return Product::whereIn('category_id', $categoryIds);
-    // }
+        return Product::whereIn('category_id', $categoryIds);
+    }
 
     /**
      * Boot method to handle model events.

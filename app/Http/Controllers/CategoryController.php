@@ -81,15 +81,16 @@ class CategoryController extends Controller
     public function destroy(Category $category): JsonResponse
     {
         // Check if category has children
-        if ($category->hasChildren()) {
+        if (!$category->isLeaf()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Cannot delete category with subcategories. Please delete subcategories first.',
             ], Response::HTTP_CONFLICT);
         }
-
+        
+        $category->loadCount('products');
         // Check if category has products
-        if ($category->products()->exists()) {
+        if ($category->products_count > 0) {
             return response()->json([
                 'success' => false,
                 'message' => 'Cannot delete category with products. Please move or delete products first.',

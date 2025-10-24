@@ -20,7 +20,7 @@ class CategoryFactory extends Factory
         
         return [
             'name' => ucwords($name),
-            'slug' => \Str::slug($name),
+            'slug' => \Illuminate\Support\Str::slug($name),
             'description' => $this->faker->sentence(),
             'is_active' => $this->faker->boolean(90), // 90% chance of being active
         ];
@@ -53,7 +53,7 @@ class CategoryFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'name' => $name,
-            'slug' => \Str::slug($name),
+            'slug' => \Illuminate\Support\Str::slug($name),
         ]);
     }
 }
