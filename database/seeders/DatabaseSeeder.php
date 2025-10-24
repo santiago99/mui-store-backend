@@ -19,9 +19,9 @@ class DatabaseSeeder extends Seeder
             self::$productIds = \App\Models\Product::pluck('id')->toArray();
         }
 
-        \Illuminate\Support\Facades\Log::debug(self::$productIds);
+        //\Illuminate\Support\Facades\Log::debug(self::$productIds);
         $randomProductIds = $count == 1 ? [array_rand(self::$productIds)] : array_rand(self::$productIds, $count);
-        \Illuminate\Support\Facades\Log::debug($randomProductIds);
+        //\Illuminate\Support\Facades\Log::debug($randomProductIds);
         return array_map(fn($id) => self::$productIds[$id], $randomProductIds);
     }
     /**

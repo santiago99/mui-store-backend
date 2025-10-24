@@ -2,10 +2,12 @@
 
 use App\Models\User;
 
-test('users can authenticate using the login screen', function () {
+const API_PREFIX = '/api/v1';
+
+test('users can authenticate using the login request', function () {
     $user = User::factory()->create();
 
-    $response = $this->post('/login', [
+    $response = $this->post(API_PREFIX . '/login', [
         'email' => $user->email,
         'password' => 'password',
     ]);
@@ -17,7 +19,7 @@ test('users can authenticate using the login screen', function () {
 test('users can not authenticate with invalid password', function () {
     $user = User::factory()->create();
 
-    $this->post('/login', [
+    $this->post(API_PREFIX . '/login', [
         'email' => $user->email,
         'password' => 'wrong-password',
     ]);
@@ -28,7 +30,7 @@ test('users can not authenticate with invalid password', function () {
 test('users can logout', function () {
     $user = User::factory()->create();
 
-    $response = $this->actingAs($user)->post('/logout');
+    $response = $this->actingAs($user)->post(API_PREFIX . '/logout');
 
     $this->assertGuest();
     $response->assertNoContent();

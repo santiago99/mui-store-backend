@@ -200,7 +200,7 @@ it('validates merge request with invalid product_id', function () {
     $response = $this->postJson('/api/v1/cart/merge', [
         'items' => [
             [
-                'product_id' => 99999, // Non-existent product
+                'product_id' => '00000000-0000-0000-0000-000000000000', // Non-existent product UUID
                 'quantity' => 2,
             ],
         ],
@@ -212,7 +212,7 @@ it('validates merge request with invalid product_id', function () {
 
 it('validates store request with invalid data', function () {
     $response = $this->postJson('/api/v1/cart', [
-        'product_id' => 99999, // Non-existent product
+        'product_id' => '00000000-0000-0000-0000-000000000000', // Non-existent product UUID
         'quantity' => 0, // Invalid quantity
     ]);
 
@@ -236,7 +236,8 @@ it('validates update request with invalid quantity', function () {
 
 it('requires authentication for cart endpoints', function () {
     // Test without authentication
-    Auth::logout();
+    $this->actingAsGuest();
+    
 
     $this->getJson('/api/v1/cart')->assertUnauthorized();
     $this->postJson('/api/v1/cart', [])->assertUnauthorized();
