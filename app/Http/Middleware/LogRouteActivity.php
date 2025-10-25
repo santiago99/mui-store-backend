@@ -4,8 +4,8 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
-use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Facades\Log;
+use Symfony\Component\HttpFoundation\Response;
 
 class LogRouteActivity
 {
@@ -16,11 +16,9 @@ class LogRouteActivity
      */
     public function handle(Request $request, Closure $next): Response
     {
-        $response = $next($request);
 
-        Log::debug('LOG_ROUTE_ACTIVITY', 'aaaaa');
         if (env('LOG_ROUTE_ACTIVITY', false)) {
-            $auth = auth()->guard('api');
+            $auth = auth()->guard('web');
             // Log the route, method, URL, and any other relevant details
             Log::debug('Route Accessed', [
                 'method' => $request->method(),
@@ -30,6 +28,8 @@ class LogRouteActivity
                 'user_id' => $auth->guest() ? 'N/A' : $auth->id(), // Log authenticated user ID if applicable
             ]);
         }
+
+        $response = $next($request);
 
         return $response;
     }
