@@ -14,7 +14,12 @@ class CategoryResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        \Illuminate\Support\Facades\Log::debug($this->ancestors->only(['name', 'id']));
+        \Illuminate\Support\Facades\Log::debug('CategoryResource::toArray', [
+            'name' => $this->name,
+            'relationLoaded' => $this->relationLoaded('children'),
+            'whenLoaded' => $this->whenLoaded('children', 'Loaded', 'Not Loaded'),
+            'whenLoadedAncestors' => $this->whenLoaded('ancestors', 'Loaded', 'Not Loaded'),
+        ]);
         return [
             'id' => $this->id,
             'name' => $this->name,
@@ -24,10 +29,10 @@ class CategoryResource extends JsonResource
             'parentId' => $this->parent_id,
             'isLeaf' => $this->isLeaf(),
             'productsCount' => $this->whenCounted('products'),
-            // 'children' => CategoryResource::collection($this->children),
-            'children' => $this->whenLoaded('children', CategoryResource::collection($this->children)),
-            // 'parent' => new CategoryResource($this->whenLoaded('parent')),
-            'ancestors' => $this->whenLoaded('ancestors', $this->ancestors->map(
+            //'children' => $this->whenLoaded('children', fn() => CategoryResource::collection($this->children)),
+            'children' => CategoryResource::collection($this->whenLoaded('children')),
+            //'parent' => new CategoryResource($this->whenLoaded('parent')),
+            'ancestors' => $this->whenLoaded('ancestors', fn() => $this->ancestors->map(
                 fn($ancestor) =>
                 [
                     'id' => $ancestor->id,
