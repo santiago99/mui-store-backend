@@ -55,7 +55,6 @@ class CategoryController extends Controller
         // ->load(['children', 'parent']);
         //$category->loadCount('products');
         $category->load('ancestors');
-        \Illuminate\Support\Facades\Log::debug($category->ancestors->only(['name', 'id']));
         //\Illuminate\Support\Facades\Log::debug('Products count [' . $category->products_count  . ']');
 
         return new CategoryResource($category);
