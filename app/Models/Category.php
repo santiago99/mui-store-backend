@@ -4,9 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Kalnoy\Nestedset\NodeTrait;
 use Illuminate\Support\Str;
-
+use Kalnoy\Nestedset\NodeTrait;
 
 class Category extends Model
 {
@@ -17,6 +16,7 @@ class Category extends Model
         'slug',
         'description',
         'is_active',
+        'product_class_id',
     ];
 
     protected $casts = [
@@ -29,6 +29,14 @@ class Category extends Model
     public function products()
     {
         return $this->hasMany(Product::class);
+    }
+
+    /**
+     * Get the product class for the category.
+     */
+    public function productClass()
+    {
+        return $this->belongsTo(ProductClass::class);
     }
 
     /**
@@ -81,7 +89,6 @@ class Category extends Model
     // {
     //     return $this->ancestors()->count();
     // }
-
 
     /**
      * Get all products from this category and its descendants.

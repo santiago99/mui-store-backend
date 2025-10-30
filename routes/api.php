@@ -3,7 +3,9 @@
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\PostController;
+use App\Http\Controllers\ProductClassController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ProductFieldController;
 use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -28,6 +30,8 @@ Route::middleware(['auth:sanctum'])->prefix('v1')->group(function () {
 Route::prefix('v1')->group(function () {
     Route::apiResource('products', ProductController::class);
     Route::apiResource('categories', CategoryController::class);
+    Route::apiResource('product-classes', ProductClassController::class);
+    Route::apiResource('product-fields', ProductFieldController::class);
 
     // Additional category routes
     // Route::get('categories-tree', [CategoryController::class, 'tree']);

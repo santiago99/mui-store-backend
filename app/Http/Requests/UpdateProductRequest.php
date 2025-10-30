@@ -25,7 +25,84 @@ class UpdateProductRequest extends FormRequest
             'title' => 'sometimes|string|max:255',
             'price' => 'sometimes|numeric|min:0',
             'imageUrl' => 'sometimes|url|max:500',
-            'sku' => 'sometimes|string|unique:products,sku,' . $this->route('product'),
+            'sku' => 'sometimes|string|unique:products,sku,'.$this->route('product'),
+            'product_class_id' => 'sometimes|exists:product_classes,id',
+            'field_values' => 'sometimes|array',
+            'field_values.*' => 'nullable',
         ];
+    }
+
+    /**
+     * Configure the validator instance.
+     */
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator) {
+            // Prevent changing product_class_id after creation
+            if ($this->has('product_class_id')) {
+                $product = $this->route('product');
+                if ($product && $product->product_class_id && $product->product_class_id != $this->input('product_class_id')) {
+                    $validator->errors()->add('product_class_id', 'Product class cannot be changed after creation.');
+                }
+            }
+
+            if ($this->has('product_class_id') && $this->has('field_values')) {
+                $productClassId = $this->input('product_class_id');
+                $fieldValues = $this->input('field_values', []);
+
+                if ($productClassId) {
+                    $productClass = \App\Models\ProductClass::with('fields')->find($productClassId);
+
+                    if ($productClass) {
+                        foreach ($fieldValues as $fieldId => $value) {
+                            $field = $productClass->fields->find($fieldId);
+
+                            if (! $field) {
+                                $validator->errors()->add("field_values.{$fieldId}", "Field {$fieldId} does not belong to this product class.");
+
+                                continue;
+                            }
+
+                            if ($value !== null) {
+                                $this->validateFieldValue($validator, $field, $value, "field_values.{$fieldId}");
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    /**
+     * Validate field value based on field type.
+     */
+    private function validateFieldValue($validator, $field, $value, $key): void
+    {
+        switch ($field->type) {
+            case \App\Enums\ProductFieldType::Integer:
+                if (! is_numeric($value) || (int) $value != $value) {
+                    $validator->errors()->add($key, "Field '{$field->name}' must be an integer.");
+                }
+                break;
+
+            case \App\Enums\ProductFieldType::Float:
+                if (! is_numeric($value)) {
+                    $validator->errors()->add($key, "Field '{$field->name}' must be a number.");
+                }
+                break;
+
+            case \App\Enums\ProductFieldType::String:
+                if (! is_string($value)) {
+                    $validator->errors()->add($key, "Field '{$field->name}' must be a string.");
+                }
+                break;
+
+            case \App\Enums\ProductFieldType::Enum:
+                $allowedValues = $field->options['enum_options'] ?? [];
+                if (! in_array($value, $allowedValues)) {
+                    $validator->errors()->add($key, "Field '{$field->name}' must be one of: ".implode(', ', $allowedValues));
+                }
+                break;
+        }
     }
 }

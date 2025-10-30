@@ -3,6 +3,8 @@
 namespace Database\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
+use App\Models\Product;
+use App\Models\ProductFieldValue;
 
 /**
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Product>
@@ -10,9 +12,9 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 class ProductFactory extends Factory
 {
     /**
-     * Cached leaf category IDs to avoid multiple database queries.
+     * Cached leaf categories to avoid multiple database queries.
      */
-    private static ?array $leafCategoryIds = null;
+    private static ?array $leafCategories = null;
 
     /**
      * Define the model's default state.
@@ -21,49 +23,103 @@ class ProductFactory extends Factory
      */
     public function definition(): array
     {
+        $category = $this->getRandomLeafCategory();
+
         return [
             'title' => $this->faker->words(3, true),
             'price' => $this->faker->randomFloat(2, 10, 1000),
             'imageUrl' => '',
-            'category_id' => $this->getRandomLeafCategoryId(),
+            'category_id' => $category?->id,
             'sku' => $this->faker->uuid(),
+            'product_class_id' => $category?->product_class_id,
         ];
     }
 
+    public function withFieldValues(): static
+    {
+        return $this->afterCreating(function (\App\Models\Product $product) {
+            // Create field values for the product
+            foreach ($product->productClass->fields as $field) {
+                $values = [
+                    'product_id' => $product->id,
+                    'product_field_id' => $field->id,
+                    'value_string' => null,
+                    'value_int' => null,
+                    'value_float' => null
+                ];
+
+                switch ($field->type) {
+                    case \App\Enums\ProductFieldType::Integer:
+                        $values['value_int'] = $this->faker->numberBetween(1, 1000);
+                        break;
+                    case \App\Enums\ProductFieldType::Float:
+                        $values['value_float'] = $this->faker->randomFloat(2, 0.1, 999.99);
+                        break;
+                    case \App\Enums\ProductFieldType::String:
+                        $values['value_string'] = $this->faker->words(2, true);
+                        break;
+                    case \App\Enums\ProductFieldType::Enum:
+                        $values['value_string'] = $this->faker->randomElement($field->options['enum_options'] ?? ['Option 1', 'Option 2']);
+                        break;
+                }
+
+                ProductFieldValue::create($values)->save();
+            }
+        });
+    }
     /**
-     * Get a random leaf category ID (categories without children).
+     * Get a random leaf category (categories without children).
      * Uses static caching to fetch categories only once per factory execution.
      */
-    private function getRandomLeafCategoryId(): ?int
+    private function getRandomLeafCategory(): ?\App\Models\Category
     {
         // Initialize cache if not already done
-        if (self::$leafCategoryIds === null) {
-            self::$leafCategoryIds = $this->fetchLeafCategoryIds();
+        if (self::$leafCategories === null) {
+            self::$leafCategories = $this->fetchLeafCategories();
         }
 
-        // Return random category ID from cached list
-        if (empty(self::$leafCategoryIds)) {
+        // Return random category from cached list
+        if (empty(self::$leafCategories)) {
             return null;
         }
 
-        return self::$leafCategoryIds[array_rand(self::$leafCategoryIds)];
+        return self::$leafCategories[array_rand(self::$leafCategories)];
     }
 
     /**
-     * Fetch leaf category IDs from database.
+     * Fetch leaf categories from database with product_class_id eager loaded.
      */
-    private function fetchLeafCategoryIds(): array
+    private function fetchLeafCategories(): array
     {
-        // Get all leaf categories (categories that don't have children)
-        $leafCategories = \App\Models\Category::whereDoesntHave('children')->pluck('id')->toArray();
-
-        if (empty($leafCategories)) {
-            // If no leaf categories exist, get any category
-            $anyCategory = \App\Models\Category::inRandomOrder()->first();
-
-            return $anyCategory ? [$anyCategory->id] : [];
-        }
+        // Get all leaf categories with product_class_id
+        $leafCategories = \App\Models\Category::whereIsLeaf()
+            ->with('productClass')
+            ->get()
+            ->all();
 
         return $leafCategories;
     }
+
+    /**
+     * Create a product with a product class and field values.
+     */
+    /* public function withFieldValues(): static
+    {
+        return $this->state(function (array $attributes) {
+            $productClass = \App\Models\ProductClass::factory()->create();
+            $fields = \App\Models\ProductField::factory()->count(3)->create();
+
+            // Attach fields to product class
+            foreach ($fields as $index => $field) {
+                $productClass->fields()->attach($field->id, ['weight' => $index]);
+            }
+
+            return [
+                'product_class_id' => $productClass->id,
+            ];
+        })->afterCreating(function (\App\Models\Product $product) {
+            // Create field values for the product
+            
+        });
+    } */
 }

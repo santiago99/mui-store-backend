@@ -73,9 +73,18 @@ class ProductController extends Controller
      */
     public function store(StoreProductRequest $request): ProductResource
     {
-        $product = Product::create($request->validated());
+        $validated = $request->validated();
+        $fieldValues = $validated['field_values'] ?? [];
+        unset($validated['field_values']);
 
-        return new ProductResource($product);
+        $product = Product::create($validated);
+
+        // Create field values if provided
+        if (! empty($fieldValues) && $product->product_class_id) {
+            $this->createFieldValues($product, $fieldValues);
+        }
+
+        return new ProductResource($product->load(['category', 'productClass', 'fieldValues.productField']));
     }
 
     /**
@@ -83,7 +92,7 @@ class ProductController extends Controller
      */
     public function show(Product $product)
     {
-        return new ProductResource($product->load('category'));
+        return new ProductResource($product->load(['category', 'productClass', 'fieldValues.productField']));
     }
 
     /**
@@ -91,9 +100,18 @@ class ProductController extends Controller
      */
     public function update(UpdateProductRequest $request, Product $product): ProductResource
     {
-        $product->update($request->validated());
+        $validated = $request->validated();
+        $fieldValues = $validated['field_values'] ?? [];
+        unset($validated['field_values']);
 
-        return new ProductResource($product);
+        $product->update($validated);
+
+        // Update field values if provided
+        if (! empty($fieldValues) && $product->product_class_id) {
+            $this->updateFieldValues($product, $fieldValues);
+        }
+
+        return new ProductResource($product->load(['category', 'productClass', 'fieldValues.productField']));
     }
 
     /**
@@ -104,5 +122,38 @@ class ProductController extends Controller
         $product->delete();
 
         return response()->json(null, Response::HTTP_NO_CONTENT);
+    }
+
+    /**
+     * Create field values for a product.
+     */
+    private function createFieldValues(Product $product, array $fieldValues): void
+    {
+        foreach ($fieldValues as $fieldId => $value) {
+            if ($value !== null) {
+                $field = \App\Models\ProductField::find($fieldId);
+                if ($field) {
+                    \App\Models\ProductFieldValue::create([
+                        'product_id' => $product->id,
+                        'product_field_id' => $fieldId,
+                        'value_string' => in_array($field->type, [\App\Enums\ProductFieldType::String, \App\Enums\ProductFieldType::Enum]) ? $value : null,
+                        'value_int' => $field->type === \App\Enums\ProductFieldType::Integer ? $value : null,
+                        'value_float' => $field->type === \App\Enums\ProductFieldType::Float ? $value : null,
+                    ]);
+                }
+            }
+        }
+    }
+
+    /**
+     * Update field values for a product.
+     */
+    private function updateFieldValues(Product $product, array $fieldValues): void
+    {
+        // Delete existing field values
+        $product->fieldValues()->delete();
+
+        // Create new field values
+        $this->createFieldValues($product, $fieldValues);
     }
 }

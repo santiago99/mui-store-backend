@@ -17,7 +17,7 @@ class CategoryFactory extends Factory
     public function definition(): array
     {
         $name = $this->faker->words(2, true);
-        
+
         return [
             'name' => ucwords($name),
             'slug' => \Illuminate\Support\Str::slug($name),
@@ -54,6 +54,16 @@ class CategoryFactory extends Factory
         return $this->state(fn (array $attributes) => [
             'name' => $name,
             'slug' => \Illuminate\Support\Str::slug($name),
+        ]);
+    }
+
+    /**
+     * Create a category with a product class.
+     */
+    public function withProductClass(int $productClassId): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'product_class_id' => $productClassId,
         ]);
     }
 }
