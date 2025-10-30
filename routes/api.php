@@ -16,6 +16,12 @@ Route::middleware(['auth:sanctum'])->prefix('v1')->group(function () {
     Route::put('/user/password', [UserController::class, 'updatePassword']);
     Route::apiResource('posts', PostController::class);
 
+    // Admin-only routes
+    Route::middleware(['admin'])->group(function () {
+        Route::get('/admin/ping', fn () => response()->json(['status' => 'ok']));
+        // Place admin-only endpoints here
+    });
+
     // Cart routes
     Route::get('/cart', [CartController::class, 'index']);
     Route::post('/cart', [CartController::class, 'store']);
