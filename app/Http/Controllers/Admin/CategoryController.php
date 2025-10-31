@@ -1,38 +1,18 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreCategoryRequest;
 use App\Http\Requests\UpdateCategoryRequest;
 use App\Http\Resources\CategoryResource;
 use App\Models\Category;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
 
 class CategoryController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index(): AnonymousResourceCollection
-    {
-        $categories = Category::active()
-            ->get()
-            ->toTree();
-
-        return CategoryResource::collection($categories);
-    }
-
-    /**
-     * Display the category tree structure.
-     */
-    // public function tree(): AnonymousResourceCollection
-    // {
-
-    // }
-
     /**
      * Store a newly created resource in storage.
      */
@@ -45,19 +25,6 @@ class CategoryController extends Controller
             'message' => 'Category created successfully',
             'data' => new CategoryResource($category),
         ], Response::HTTP_CREATED);
-    }
-
-    /**
-     * Display the specified resource.
-     */
-    public function show(Category $category): CategoryResource
-    {
-        // ->load(['children', 'parent']);
-        //$category->loadCount('products');
-        $category->load('ancestors');
-        //\Illuminate\Support\Facades\Log::debug('Products count [' . $category->products_count  . ']');
-
-        return new CategoryResource($category);
     }
 
     /**
@@ -80,13 +47,13 @@ class CategoryController extends Controller
     public function destroy(Category $category): JsonResponse
     {
         // Check if category has children
-        if (!$category->isLeaf()) {
+        if (! $category->isLeaf()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Cannot delete category with subcategories. Please delete subcategories first.',
             ], Response::HTTP_CONFLICT);
         }
-        
+
         $category->loadCount('products');
         // Check if category has products
         if ($category->products_count > 0) {
@@ -130,19 +97,6 @@ class CategoryController extends Controller
             'success' => true,
             'message' => 'Category moved successfully',
             'data' => new CategoryResource($category),
-        ]);
-    }
-
-    /**
-     * Get products for a category and its descendants.
-     */
-    public function products(Category $category): JsonResponse
-    {
-        $products = $category->getAllProducts()->with('category')->get();
-
-        return response()->json([
-            'success' => true,
-            'data' => $products,
         ]);
     }
 }

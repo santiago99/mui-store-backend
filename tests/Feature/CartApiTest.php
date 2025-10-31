@@ -81,7 +81,7 @@ it('can update cart item quantity', function () {
         'quantity' => 2,
     ]);
 
-    $response = $this->patchJson("/api/v1/cart/{$cartItem->id}", [
+    $response = $this->putJson("/api/v1/cart/{$cartItem->id}", [
         'quantity' => 5,
     ]);
 
@@ -116,7 +116,7 @@ it('cannot access other users cart items', function () {
         'product_id' => $this->product->id,
     ]);
 
-    $response = $this->patchJson("/api/v1/cart/{$cartItem->id}", [
+    $response = $this->putJson("/api/v1/cart/{$cartItem->id}", [
         'quantity' => 5,
     ]);
 
@@ -226,7 +226,7 @@ it('validates update request with invalid quantity', function () {
         'product_id' => $this->product->id,
     ]);
 
-    $response = $this->patchJson("/api/v1/cart/{$cartItem->id}", [
+    $response = $this->putJson("/api/v1/cart/{$cartItem->id}", [
         'quantity' => 0, // Invalid quantity
     ]);
 
@@ -242,6 +242,6 @@ it('requires authentication for cart endpoints', function () {
     $this->getJson('/api/v1/cart')->assertUnauthorized();
     $this->postJson('/api/v1/cart', [])->assertUnauthorized();
     $this->postJson('/api/v1/cart/merge', [])->assertUnauthorized();
-    $this->patchJson('/api/v1/cart/1', [])->assertUnauthorized();
+    $this->putJson('/api/v1/cart/1', [])->assertUnauthorized();
     $this->deleteJson('/api/v1/cart/1')->assertUnauthorized();
 });

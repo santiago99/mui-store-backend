@@ -1,10 +1,12 @@
 <?php
 
+use App\Http\Controllers\Admin\CategoryController as AdminCategoryController;
+use App\Http\Controllers\Admin\ProductController as AdminProductController;
+use App\Http\Controllers\Api\CategoryController as ApiCategoryController;
+use App\Http\Controllers\Api\ProductController as ApiProductController;
 use App\Http\Controllers\CartController;
-use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\ProductClassController;
-use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductFieldController;
 use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
@@ -16,17 +18,11 @@ Route::middleware(['auth:sanctum'])->prefix('v1')->group(function () {
     Route::put('/user/password', [UserController::class, 'updatePassword']);
     Route::apiResource('posts', PostController::class);
 
-    // Admin-only routes
-    Route::middleware(['admin'])->group(function () {
-        Route::get('/admin/ping', fn () => response()->json(['status' => 'ok']));
-        // Place admin-only endpoints here
-    });
-
     // Cart routes
     Route::get('/cart', [CartController::class, 'index']);
     Route::post('/cart', [CartController::class, 'store']);
     Route::post('/cart/merge', [CartController::class, 'merge']);
-    Route::patch('/cart/{cartItem}', [CartController::class, 'update']);
+    Route::put('/cart/{cartItem}', [CartController::class, 'update']);
     Route::delete('/cart/{cartItem}', [CartController::class, 'destroy']);
 
     // Route::post('/logout', [AuthController::class, 'logout']);
@@ -34,13 +30,27 @@ Route::middleware(['auth:sanctum'])->prefix('v1')->group(function () {
 
 // Product and Category routes (public for testing purposes)
 Route::prefix('v1')->group(function () {
-    Route::apiResource('products', ProductController::class);
-    Route::apiResource('categories', CategoryController::class);
-    Route::apiResource('product-classes', ProductClassController::class);
-    Route::apiResource('product-fields', ProductFieldController::class);
+    // Public API routes (read-only)
+    Route::get('products', [ApiProductController::class, 'index']);
+    Route::get('products/{product}', [ApiProductController::class, 'show']);
+    Route::get('categories', [ApiCategoryController::class, 'index']);
+    Route::get('categories/{category}', [ApiCategoryController::class, 'show']);
+    Route::get('categories/{category}/products', [ApiCategoryController::class, 'products']);
 
-    // Additional category routes
-    // Route::get('categories-tree', [CategoryController::class, 'tree']);
-    Route::post('categories/{category}/move', [CategoryController::class, 'move']);
-    Route::get('categories/{category}/products', [CategoryController::class, 'products']);
+    Route::apiResource('product-classes', ProductClassController::class);
+    Route::apiResource('product-fields', ProductFieldController::class);    
+});
+
+// Admin routes (mutating operations) - require admin middleware and /admin prefix
+Route::middleware(['auth:sanctum', 'admin'])->prefix('v1/admin')->group(function () {
+    Route::get('ping', fn() => response()->json(['status' => 'ok']));
+    
+    Route::post('products', [AdminProductController::class, 'store']);
+    Route::put('products/{product}', [AdminProductController::class, 'update']);
+    Route::delete('products/{product}', [AdminProductController::class, 'destroy']);
+
+    Route::post('categories', [AdminCategoryController::class, 'store']);
+    Route::put('categories/{category}', [AdminCategoryController::class, 'update']);
+    Route::delete('categories/{category}', [AdminCategoryController::class, 'destroy']);
+    Route::post('categories/{category}/move', [AdminCategoryController::class, 'move']);
 });
