@@ -20,6 +20,7 @@ class Product extends Model
         'category_id',
         'sku',
         'product_class_id',
+        'brand_id',
     ];
 
     /**
@@ -52,5 +53,13 @@ class Product extends Model
     public function fieldValues()
     {
         return $this->hasMany(ProductFieldValue::class);
+    }
+
+    /**
+     * Get the brand that owns the product.
+     */
+    public function brand()
+    {
+        return $this->belongsTo(Brand::class);
     }
 }

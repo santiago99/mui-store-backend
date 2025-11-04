@@ -26,6 +26,7 @@ class ProductController extends Controller
             'page' => 'integer|min:1',
             'per_page' => 'integer|min:1|max:100',
             'category_id' => 'integer|exists:categories,id',
+            'brand_id' => 'integer|exists:brands,id',
             'sort_by' => 'string|in:title,price,created_at',
             'sort_direction' => 'string|in:asc,desc',
         ]);
@@ -35,6 +36,11 @@ class ProductController extends Controller
         // Apply category filter
         if (isset($filter['category_id'])) {
             $query->where('category_id', $filter['category_id']);
+        }
+
+        // Apply brand filter
+        if (isset($filter['brand_id'])) {
+            $query->where('brand_id', $filter['brand_id']);
         }
 
         // Apply sorting
@@ -51,6 +57,6 @@ class ProductController extends Controller
      */
     public function show(Product $product): ProductResource
     {
-        return new ProductResource($product->load(['category', 'productClass', 'fieldValues.productField']));
+        return new ProductResource($product->load(['category', 'productClass', 'brand', 'fieldValues.productField']));
     }
 }

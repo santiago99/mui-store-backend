@@ -22,6 +22,11 @@ class ProductResource extends JsonResource
             'imageUrl' => $this->imageUrl,
             'categoryId' => $this->category_id,
             'productClassId' => $this->product_class_id,
+            'brandId' => $this->brand_id,
+            'brand' => $this->whenLoaded('brand', fn () => [
+                'id' => $this->brand->id,
+                'name' => $this->brand->name,
+            ]),
             'fields' => ProductFieldValueResource::collection($this->whenLoaded('fieldValues')),
             'created_at' => $this->created_at->toDateTimeString(),
             'updated_at' => $this->updated_at->toDateTimeString(),
