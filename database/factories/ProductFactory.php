@@ -2,8 +2,9 @@
 
 namespace Database\Factories;
 
+use App\Models\Brand;
+use App\Models\Category;
 use Illuminate\Database\Eloquent\Factories\Factory;
-use App\Models\Product;
 use App\Models\ProductFieldValue;
 
 /**
@@ -23,21 +24,21 @@ class ProductFactory extends Factory
      */
     public function definition(): array
     {
-        $category = $this->getRandomLeafCategory();
-
+        //$category = $this->getRandomLeafCategory();
         return [
             'title' => $this->faker->words(3, true),
             'price' => $this->faker->randomFloat(2, 10, 1000),
             'imageUrl' => '',
-            'category_id' => $category?->id,
+            'category_id' => Category::factory(),
+            'brand_id' => Brand::factory(),
             'sku' => $this->faker->uuid(),
-            'product_class_id' => $category?->product_class_id,
         ];
     }
 
     public function withFieldValues(): static
     {
         return $this->afterCreating(function (\App\Models\Product $product) {
+            $product->product_class_id = $product->category?->product_class_id;
             // Create field values for the product
             foreach ($product->productClass->fields as $field) {
                 $values = [

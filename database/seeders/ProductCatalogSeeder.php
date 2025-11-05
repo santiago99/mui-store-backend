@@ -6,6 +6,7 @@ use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductClass;
 use App\Models\ProductField;
+use App\Models\Brand;
 use Illuminate\Database\Seeder;
 use \Illuminate\Database\Eloquent\Collection;
 
@@ -19,9 +20,9 @@ class ProductCatalogSeeder extends Seeder
         $this->createCategories();
         $leafCategories = Category::whereIsLeaf()->with('productClass')->get();
         $this->createProductClassesForLeafCategories($leafCategories);
-
+        $brands = Brand::factory(rand(7,10))->create();
         // Create products with categories and field values
-        Product::factory(100)->withFieldValues()->create();
+        Product::factory(100)->recycle($brands)->recycle($leafCategories)->withFieldValues()->create();
     }
 
     /**
