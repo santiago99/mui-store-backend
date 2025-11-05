@@ -31,7 +31,7 @@ class ProductController extends Controller
             'sort_direction' => 'string|in:asc,desc',
         ]);
 
-        $query = Product::with('category');
+        $query = Product::with('category', 'brand');
 
         // Apply category filter
         if (isset($filter['category_id'])) {
