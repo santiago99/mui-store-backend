@@ -2,13 +2,13 @@
 
 use App\Http\Controllers\Admin\CategoryController as AdminCategoryController;
 use App\Http\Controllers\Admin\ProductController as AdminProductController;
+use App\Http\Controllers\Admin\ProductClassController;
+use App\Http\Controllers\Admin\ProductFieldController;
 use App\Http\Controllers\Api\CategoryController as ApiCategoryController;
 use App\Http\Controllers\Api\ProductController as ApiProductController;
-use App\Http\Controllers\CartController;
+use App\Http\Controllers\Api\CartController;
+use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\PostController;
-use App\Http\Controllers\ProductClassController;
-use App\Http\Controllers\ProductFieldController;
-use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -36,9 +36,6 @@ Route::prefix('v1')->group(function () {
     Route::get('categories', [ApiCategoryController::class, 'index']);
     Route::get('categories/{category}', [ApiCategoryController::class, 'show']);
     Route::get('categories/{category}/products', [ApiCategoryController::class, 'products']);
-
-    Route::apiResource('product-classes', ProductClassController::class);
-    Route::apiResource('product-fields', ProductFieldController::class);    
 });
 
 // Admin routes (mutating operations) - require admin middleware and /admin prefix
@@ -48,9 +45,12 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('v1/admin')->group(function
     Route::post('products', [AdminProductController::class, 'store']);
     Route::put('products/{product}', [AdminProductController::class, 'update']);
     Route::delete('products/{product}', [AdminProductController::class, 'destroy']);
-
+    
     Route::post('categories', [AdminCategoryController::class, 'store']);
     Route::put('categories/{category}', [AdminCategoryController::class, 'update']);
     Route::delete('categories/{category}', [AdminCategoryController::class, 'destroy']);
     Route::post('categories/{category}/move', [AdminCategoryController::class, 'move']);
+    
+    Route::apiResource('product-classes', ProductClassController::class);
+    Route::apiResource('product-fields', ProductFieldController::class);    
 });
