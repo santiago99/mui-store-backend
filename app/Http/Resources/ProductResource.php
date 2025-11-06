@@ -21,11 +21,17 @@ class ProductResource extends JsonResource
             'price' => $this->price,
             'imageUrl' => $this->imageUrl,
             'categoryId' => $this->category_id,
+            'category' => $this->whenLoaded('category', fn () => [
+                'id' => $this->category->id,
+                'name' => $this->category->name,
+                'slug' => $this->category->slug,
+            ]),
             'productClassId' => $this->product_class_id,
             'brandId' => $this->brand_id,
             'brand' => $this->whenLoaded('brand', fn () => [
                 'id' => $this->brand->id,
                 'name' => $this->brand->name,
+                'slug' => $this->brand->slug,
             ]),
             'fields' => ProductFieldValueResource::collection($this->whenLoaded('fieldValues')),
             'created_at' => $this->created_at->toDateTimeString(),
