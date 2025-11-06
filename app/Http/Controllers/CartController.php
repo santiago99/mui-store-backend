@@ -19,7 +19,9 @@ class CartController extends Controller
      */
     public function index(): AnonymousResourceCollection
     {
-        $cartItems = Auth::user()
+        /** @var User $user */
+        $user = Auth::user();
+        $cartItems = $user
             ->cartItems()
             ->with('product.category')
             ->get();
@@ -32,6 +34,7 @@ class CartController extends Controller
      */
     public function store(StoreCartItemRequest $request): CartItemResource
     {
+        /** @var User $user */
         $user = Auth::user();
         $validated = $request->validated();
 
@@ -93,6 +96,7 @@ class CartController extends Controller
      */
     public function merge(MergeCartRequest $request): AnonymousResourceCollection
     {
+        /** @var User $user */
         $user = Auth::user();
         $validated = $request->validated();
 
