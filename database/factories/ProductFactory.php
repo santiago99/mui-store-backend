@@ -4,8 +4,8 @@ namespace Database\Factories;
 
 use App\Models\Brand;
 use App\Models\Category;
-use Illuminate\Database\Eloquent\Factories\Factory;
 use App\Models\ProductFieldValue;
+use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Product>
@@ -24,9 +24,10 @@ class ProductFactory extends Factory
      */
     public function definition(): array
     {
-        //$category = $this->getRandomLeafCategory();
+        // $category = $this->getRandomLeafCategory();
         return [
             'title' => $this->faker->words(3, true),
+            'description' => $this->faker->paragraphs(3, true),
             'price' => $this->faker->randomFloat(2, 10, 1000),
             'imageUrl' => '',
             'category_id' => Category::factory(),
@@ -46,7 +47,7 @@ class ProductFactory extends Factory
                     'product_field_id' => $field->id,
                     'value_string' => null,
                     'value_int' => null,
-                    'value_float' => null
+                    'value_float' => null,
                 ];
 
                 switch ($field->type) {
@@ -68,6 +69,7 @@ class ProductFactory extends Factory
             }
         });
     }
+
     /**
      * Get a random leaf category (categories without children).
      * Uses static caching to fetch categories only once per factory execution.
@@ -120,7 +122,7 @@ class ProductFactory extends Factory
             ];
         })->afterCreating(function (\App\Models\Product $product) {
             // Create field values for the product
-            
+
         });
     } */
 }

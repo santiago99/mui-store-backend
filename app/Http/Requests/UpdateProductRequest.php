@@ -23,6 +23,7 @@ class UpdateProductRequest extends FormRequest
     {
         return [
             'title' => 'sometimes|string|max:255',
+            'description' => 'sometimes|string',
             'price' => 'sometimes|numeric|min:0',
             'imageUrl' => 'sometimes|url|max:500',
             'sku' => 'sometimes|string|unique:products,sku,'.$this->route('product'),

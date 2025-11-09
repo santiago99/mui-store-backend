@@ -23,6 +23,7 @@ class StoreProductRequest extends FormRequest
     {
         return [
             'title' => 'required|string|max:255',
+            'description' => 'nullable|string',
             'price' => 'required|numeric|min:0',
             'imageUrl' => 'required|url|max:500',
             'sku' => 'nullable|string|unique:products,sku',
