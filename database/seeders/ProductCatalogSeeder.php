@@ -2,6 +2,8 @@
 
 namespace Database\Seeders;
 
+use App\Enums\FilterType;
+use App\Enums\ProductFieldType;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductClass;
@@ -212,15 +214,41 @@ class ProductCatalogSeeder extends Seeder
             $category->productClass()->associate($productClass)->save();
 
             $fieldCount = rand(3, 5);
-            // \Illuminate\Support\Facades\Log::debug('Creating fields for product class', [
-            //     'productClass' => $productClass->name,
-            //     'fieldCount' => $fieldCount,
-            // ]);
             // Create 3-5 fields for this ProductClass
             $weight = 0;
-            ProductField::factory($fieldCount)
-                ->hasAttached($productClass, fn () => ['weight' => $weight++])
-                ->create();
+            $filterWeight = 0;
+            $productFields = ProductField::factory($fieldCount)->create();
+
+            foreach ($productFields as $productField) {
+                $isFilter = fake()->boolean(35); // 35% chance of being filtrable
+                $filterType = null;
+                $currentFilterWeight = 0;
+
+                if ($isFilter) {
+                    $filterType = $this->determineFilterType($productField->type);
+                    $currentFilterWeight = $filterWeight++;
+                }
+
+                $productClass->fields()->attach($productField->id, [
+                    'weight' => $weight++,
+                    'is_filter' => $isFilter,
+                    'filter_type' => $filterType?->value,
+                    'filter_weight' => $currentFilterWeight,
+                    'options' => null,
+                ]);
+            }
         }
+    }
+
+    /**
+     * Determine the appropriate filter type based on the product field type.
+     */
+    private function determineFilterType(ProductFieldType $fieldType): FilterType
+    {
+        return match ($fieldType) {
+            ProductFieldType::Integer, ProductFieldType::Float => FilterType::Range,
+            ProductFieldType::String => fake()->randomElement([FilterType::Textfield, FilterType::Select]),
+            ProductFieldType::Enum => fake()->randomElement([FilterType::Select, FilterType::Checkboxes]),
+        };
     }
 }

@@ -40,7 +40,7 @@ class ProductField extends Model
     public function productClasses()
     {
         return $this->belongsToMany(ProductClass::class, 'product_class_product_field')
-            ->withPivot('weight');
+            ->withPivot('weight', 'is_filter', 'filter_type', 'filter_weight', 'options');
     }
 
     /**

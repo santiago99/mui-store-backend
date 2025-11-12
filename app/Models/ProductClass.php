@@ -32,8 +32,19 @@ class ProductClass extends Model
     public function fields()
     {
         return $this->belongsToMany(ProductField::class, 'product_class_product_field')
-            ->withPivot('weight')
-            ->orderBy('weight');
+            ->withPivot('weight', 'is_filter', 'filter_type', 'filter_weight', 'options')
+            ->orderByPivot('weight');
+    }
+
+    /**
+     * Get the filterable fields for the product class.
+     */
+    public function filterableFields()
+    {
+        return $this->belongsToMany(ProductField::class, 'product_class_product_field')
+            ->withPivot('weight', 'is_filter', 'filter_type', 'filter_weight', 'options')
+            ->wherePivot('is_filter', true)
+            ->orderByPivot('filter_weight');
     }
 
     /**
