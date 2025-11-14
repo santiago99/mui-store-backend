@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\CategoryResource;
+use App\Http\Resources\ProductFilterResource;
 use App\Models\Category;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -43,5 +44,23 @@ class CategoryController extends Controller
             'success' => true,
             'data' => $products,
         ]);
+    }
+
+    /**
+     * Get filters from product class associated with the category.
+     */
+    public function filters(Category $category): AnonymousResourceCollection
+    {
+        $productClass = $category->productClass;
+
+        if (! $productClass) {
+            return ProductFilterResource::collection(collect());
+        }
+
+        $filterableFields = $productClass->filterableFields()->get();
+
+        ProductFilterResource::cacheProductClass($productClass);
+
+        return ProductFilterResource::collection($filterableFields);
     }
 }
