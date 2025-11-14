@@ -91,4 +91,32 @@ class Product extends Model
             $query->orderBy($filter['sort_by'], $filter['sort_direction']);
         }
     }
+
+    /**
+     * Set the product class ID (only allowed during creation).
+     */
+    public function setProductClassId(string $productClassId): void
+    {
+        if ($this->exists) {
+            throw new \RuntimeException('Product class ID cannot be changed after creation.');
+        }
+
+        $this->attributes['product_class_id'] = $productClassId;
+    }
+
+    /**
+     * Boot method to handle model events.
+     */
+    protected static function boot(): void
+    {
+        parent::boot();
+
+        // Prevent product_class_id from being updated after creation
+        static::updating(function (Product $product) {
+            if ($product->isDirty('product_class_id') && $product->getOriginal('product_class_id') !== null) {
+                // Restore the original value to prevent the update
+                $product->product_class_id = $product->getOriginal('product_class_id');
+            }
+        });
+    }
 }

@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Product;
+use App\Models\ProductClass;
 use App\Models\Role;
 use App\Models\User;
 
@@ -23,10 +24,12 @@ describe('Product Admin CRUD Operations', function () {
 
     describe('POST /api/v1/admin/products (store)', function () {
         test('admin can create a new product with valid data', function () {
+            $productClass = ProductClass::factory()->create();
             $productData = [
                 'title' => 'Test Product',
                 'price' => 99.99,
                 'imageUrl' => 'https://example.com/image.jpg',
+                'product_class_id' => $productClass->id,
             ];
 
             $response = $this->actingAs($this->admin)->postJson('/api/v1/admin/products', $productData);
@@ -51,21 +54,28 @@ describe('Product Admin CRUD Operations', function () {
                     ],
                 ]);
 
-            $this->assertDatabaseHas('products', $productData);
+            $this->assertDatabaseHas('products', [
+                'title' => 'Test Product',
+                'price' => 99.99,
+                'imageUrl' => 'https://example.com/image.jpg',
+                'product_class_id' => $productClass->id,
+            ]);
         });
 
         test('validates required fields', function () {
             $response = $this->actingAs($this->admin)->postJson('/api/v1/admin/products', []);
 
             $response->assertStatus(422)
-                ->assertJsonValidationErrors(['title', 'price', 'imageUrl']);
+                ->assertJsonValidationErrors(['title', 'price', 'imageUrl', 'product_class_id']);
         });
 
         test('validates title is string and max length', function () {
+            $productClass = ProductClass::factory()->create();
             $response = $this->actingAs($this->admin)->postJson('/api/v1/admin/products', [
                 'title' => str_repeat('a', 256), // Too long
                 'price' => 99.99,
                 'imageUrl' => 'https://example.com/image.jpg',
+                'product_class_id' => $productClass->id,
             ]);
 
             $response->assertStatus(422)
@@ -73,10 +83,12 @@ describe('Product Admin CRUD Operations', function () {
         });
 
         test('validates price is numeric and positive', function () {
+            $productClass = ProductClass::factory()->create();
             $response = $this->actingAs($this->admin)->postJson('/api/v1/admin/products', [
                 'title' => 'Test Product',
                 'price' => -10, // Negative price
                 'imageUrl' => 'https://example.com/image.jpg',
+                'product_class_id' => $productClass->id,
             ]);
 
             $response->assertStatus(422)
@@ -84,10 +96,12 @@ describe('Product Admin CRUD Operations', function () {
         });
 
         test('validates imageUrl is valid URL', function () {
+            $productClass = ProductClass::factory()->create();
             $response = $this->actingAs($this->admin)->postJson('/api/v1/admin/products', [
                 'title' => 'Test Product',
                 'price' => 99.99,
                 'imageUrl' => 'not-a-valid-url',
+                'product_class_id' => $productClass->id,
             ]);
 
             $response->assertStatus(422)
@@ -95,16 +109,19 @@ describe('Product Admin CRUD Operations', function () {
         });
 
         test('requires admin authentication', function () {
+            $productClass = ProductClass::factory()->create();
             $response = $this->postJson('/api/v1/admin/products', [
                 'title' => 'Test Product',
                 'price' => 99.99,
                 'imageUrl' => 'https://example.com/image.jpg',
+                'product_class_id' => $productClass->id,
             ]);
 
             $response->assertUnauthorized();
         });
 
         test('customer cannot create products', function () {
+            $productClass = ProductClass::factory()->create();
             $customerRoleId = Role::query()->where('name', Role::CUSTOMER)->value('id');
             $customer = User::factory()->create([
                 'role_id' => $customerRoleId,
@@ -114,6 +131,7 @@ describe('Product Admin CRUD Operations', function () {
                 'title' => 'Test Product',
                 'price' => 99.99,
                 'imageUrl' => 'https://example.com/image.jpg',
+                'product_class_id' => $productClass->id,
             ]);
 
             $response->assertForbidden();
@@ -222,6 +240,27 @@ describe('Product Admin CRUD Operations', function () {
 
             $response->assertForbidden();
         });
+
+        test('prevents changing product_class_id on update', function () {
+            $productClass1 = ProductClass::factory()->create();
+            $productClass2 = ProductClass::factory()->create();
+            $product = Product::factory()->create([
+                'product_class_id' => $productClass1->id,
+            ]);
+
+            $response = $this->actingAs($this->admin)->putJson("/api/v1/admin/products/{$product->id}", [
+                'title' => 'Updated Product',
+                'product_class_id' => $productClass2->id,
+            ]);
+
+            $response->assertStatus(422)
+                ->assertJsonValidationErrors(['product_class_id']);
+
+            $this->assertDatabaseHas('products', [
+                'id' => $product->id,
+                'product_class_id' => $productClass1->id,
+            ]);
+        });
     });
 
     describe('DELETE /api/v1/admin/products/{id} (destroy)', function () {
@@ -264,10 +303,12 @@ describe('Product Admin CRUD Operations', function () {
 
     describe('Edge Cases and Error Handling', function () {
         test('handles large numbers for price', function () {
+            $productClass = ProductClass::factory()->create();
             $productData = [
                 'title' => 'Expensive Product',
                 'price' => 999999.99,
                 'imageUrl' => 'https://example.com/expensive.jpg',
+                'product_class_id' => $productClass->id,
             ];
 
             $response = $this->actingAs($this->admin)->postJson('/api/v1/admin/products', $productData);
@@ -281,12 +322,14 @@ describe('Product Admin CRUD Operations', function () {
         });
 
         test('handles very long URLs', function () {
+            $productClass = ProductClass::factory()->create();
             $longUrl = 'https://example.com/'.str_repeat('very-long-path/', 50).'image.jpg';
 
             $productData = [
                 'title' => 'Product with Long URL',
                 'price' => 50.00,
                 'imageUrl' => $longUrl,
+                'product_class_id' => $productClass->id,
             ];
 
             $response = $this->actingAs($this->admin)->postJson('/api/v1/admin/products', $productData);
@@ -296,10 +339,12 @@ describe('Product Admin CRUD Operations', function () {
         });
 
         test('handles special characters in title', function () {
+            $productClass = ProductClass::factory()->create();
             $productData = [
                 'title' => 'Product with Special Chars: !@#$%^&*()',
                 'price' => 75.50,
                 'imageUrl' => 'https://example.com/special.jpg',
+                'product_class_id' => $productClass->id,
             ];
 
             $response = $this->actingAs($this->admin)->postJson('/api/v1/admin/products', $productData);

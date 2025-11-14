@@ -27,7 +27,6 @@ class UpdateProductRequest extends FormRequest
             'price' => 'sometimes|numeric|min:0',
             'imageUrl' => 'sometimes|url|max:500',
             'sku' => 'sometimes|string|unique:products,sku,'.$this->route('product'),
-            'product_class_id' => 'sometimes|exists:product_classes,id',
             'field_values' => 'sometimes|array',
             'field_values.*' => 'nullable',
         ];
@@ -39,20 +38,18 @@ class UpdateProductRequest extends FormRequest
     public function withValidator($validator): void
     {
         $validator->after(function ($validator) {
-            // Prevent changing product_class_id after creation
+            // Prevent product_class_id from being updated
             if ($this->has('product_class_id')) {
-                $product = $this->route('product');
-                if ($product && $product->product_class_id && $product->product_class_id != $this->input('product_class_id')) {
-                    $validator->errors()->add('product_class_id', 'Product class cannot be changed after creation.');
-                }
+                $validator->errors()->add('product_class_id', 'Product class cannot be changed after creation.');
             }
 
-            if ($this->has('product_class_id') && $this->has('field_values')) {
-                $productClassId = $this->input('product_class_id');
+            // Validate field values against the product's existing product_class_id
+            if ($this->has('field_values')) {
+                $product = $this->route('product');
                 $fieldValues = $this->input('field_values', []);
 
-                if ($productClassId) {
-                    $productClass = \App\Models\ProductClass::with('fields')->find($productClassId);
+                if ($product && $product->product_class_id) {
+                    $productClass = \App\Models\ProductClass::with('fields')->find($product->product_class_id);
 
                     if ($productClass) {
                         foreach ($fieldValues as $fieldId => $value) {

@@ -19,9 +19,15 @@ class ProductController extends Controller
     {
         $validated = $request->validated();
         $fieldValues = $validated['field_values'] ?? [];
-        unset($validated['field_values']);
+        $productClassId = $validated['product_class_id'] ?? null;
+        unset($validated['field_values'], $validated['product_class_id']);
 
-        $product = Product::create($validated);
+        // Set product_class_id before creation using setProductClassId
+        $product = new Product($validated);
+        if ($productClassId) {
+            $product->setProductClassId($productClassId);
+        }
+        $product->save();
 
         // Create field values if provided
         if (! empty($fieldValues) && $product->product_class_id) {
@@ -39,6 +45,9 @@ class ProductController extends Controller
         $validated = $request->validated();
         $fieldValues = $validated['field_values'] ?? [];
         unset($validated['field_values']);
+        if (isset($validated['product_class_id'])) {
+            unset($validated['product_class_id']);
+        }
 
         $product->update($validated);
 

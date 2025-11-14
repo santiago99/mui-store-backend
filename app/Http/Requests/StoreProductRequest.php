@@ -27,7 +27,7 @@ class StoreProductRequest extends FormRequest
             'price' => 'required|numeric|min:0',
             'imageUrl' => 'required|url|max:500',
             'sku' => 'nullable|string|unique:products,sku',
-            'product_class_id' => 'nullable|exists:product_classes,id',
+            'product_class_id' => 'required|exists:product_classes,id',
             'field_values' => 'nullable|array',
             'field_values.*' => 'nullable',
         ];
@@ -39,7 +39,7 @@ class StoreProductRequest extends FormRequest
     public function withValidator($validator): void
     {
         $validator->after(function ($validator) {
-            if ($this->has('product_class_id') && $this->has('field_values')) {
+            if ($this->has('field_values')) {
                 $productClassId = $this->input('product_class_id');
                 $fieldValues = $this->input('field_values', []);
 

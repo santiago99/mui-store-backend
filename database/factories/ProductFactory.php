@@ -4,6 +4,7 @@ namespace Database\Factories;
 
 use App\Models\Brand;
 use App\Models\Category;
+use App\Models\ProductClass;
 use App\Models\ProductFieldValue;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -36,10 +37,44 @@ class ProductFactory extends Factory
         ];
     }
 
+    /**
+     * Configure the model factory.
+     */
+    public function configure(): static
+    {
+        return $this->afterCreating(function (\App\Models\Product $product) {
+            // Only set product_class_id if it wasn't already set (e.g., from factory call)
+            if (! $product->product_class_id) {
+                if ($product->category && $product->category->product_class_id) {
+                    $product->product_class_id = $product->category->product_class_id;
+                } else {
+                    // Create a ProductClass if category doesn't have one
+                    $productClass = ProductClass::factory()->create();
+                    $product->product_class_id = $productClass->id;
+                }
+                $product->save();
+            }
+        });
+    }
+
     public function withFieldValues(): static
     {
         return $this->afterCreating(function (\App\Models\Product $product) {
-            $product->product_class_id = $product->category?->product_class_id;
+            // Ensure product_class_id is set (should already be set by configure, but double-check)
+            // if (! $product->product_class_id) {
+            //     if ($product->category && $product->category->product_class_id) {
+            //         $product->product_class_id = $product->category->product_class_id;
+            //     } else {
+            //         $productClass = ProductClass::factory()->create();
+            //         $product->product_class_id = $productClass->id;
+            //     }
+            //     $product->save();
+            // }
+
+            // Reload product to get the productClass relationship
+            //$product->refresh();
+            $product->load('productClass.fields');
+
             // Create field values for the product
             foreach ($product->productClass->fields as $field) {
                 $values = [
@@ -103,26 +138,4 @@ class ProductFactory extends Factory
         return $leafCategories;
     }
 
-    /**
-     * Create a product with a product class and field values.
-     */
-    /* public function withFieldValues(): static
-    {
-        return $this->state(function (array $attributes) {
-            $productClass = \App\Models\ProductClass::factory()->create();
-            $fields = \App\Models\ProductField::factory()->count(3)->create();
-
-            // Attach fields to product class
-            foreach ($fields as $index => $field) {
-                $productClass->fields()->attach($field->id, ['weight' => $index]);
-            }
-
-            return [
-                'product_class_id' => $productClass->id,
-            ];
-        })->afterCreating(function (\App\Models\Product $product) {
-            // Create field values for the product
-
-        });
-    } */
 }
