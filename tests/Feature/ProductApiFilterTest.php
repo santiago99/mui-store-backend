@@ -11,7 +11,6 @@ beforeEach(function () {
 
 describe('Product API Filterins and sorting', function () {
 
-
     describe('GET /api/v1/products (index) - Filters', function () {
         describe('category_id filter', function () {
             test('can filter products by category_id', function () {
@@ -52,6 +51,77 @@ describe('Product API Filterins and sorting', function () {
 
                 $response->assertUnprocessable()
                     ->assertJsonValidationErrors(['category_id']);
+            });
+        });
+
+        describe('brand_id filter', function () {
+            test('can filter products by single brand_id', function () {
+                $brand1 = Brand::factory()->create(['name' => 'Brand One']);
+                $brand2 = Brand::factory()->create(['name' => 'Brand Two']);
+
+                $productsBrand1 = Product::factory()->count(3)->create(['brand_id' => $brand1->id]);
+                $productsBrand2 = Product::factory()->count(2)->create(['brand_id' => $brand2->id]);
+
+                $response = $this->getJson("/api/v1/products?brand_id={$brand1->id}");
+
+                $response->assertSuccessful()
+                    ->assertJsonCount(3, 'data')
+                    ->assertJsonPath('data.0.brand.id', $brand1->id)
+                    ->assertJsonPath('data.1.brand.id', $brand1->id)
+                    ->assertJsonPath('data.2.brand.id', $brand1->id);
+            });
+
+            test('can filter products by array of brand_ids', function () {
+                $brand1 = Brand::factory()->create(['name' => 'Brand One']);
+                $brand2 = Brand::factory()->create(['name' => 'Brand Two']);
+                $brand3 = Brand::factory()->create(['name' => 'Brand Three']);
+
+                $productsBrand1 = Product::factory()->count(2)->create(['brand_id' => $brand1->id]);
+                $productsBrand2 = Product::factory()->count(3)->create(['brand_id' => $brand2->id]);
+                $productsBrand3 = Product::factory()->count(1)->create(['brand_id' => $brand3->id]);
+
+                $response = $this->getJson("/api/v1/products?brand_id[]={$brand1->id}&brand_id[]={$brand2->id}");
+
+                $response->assertSuccessful()
+                    ->assertJsonCount(5, 'data');
+
+                $brandIds = collect($response->json('data'))->pluck('brand.id')->unique()->sort()->values();
+                expect($brandIds)->toContain($brand1->id, $brand2->id)
+                    ->not->toContain($brand3->id);
+            });
+
+            test('returns empty array when brand has no products', function () {
+                $brand = Brand::factory()->create(['name' => 'Empty Brand']);
+                Product::factory()->count(2)->create(); // Products with other brands
+
+                $response = $this->getJson("/api/v1/products?brand_id={$brand->id}");
+
+                $response->assertSuccessful()
+                    ->assertJsonCount(0, 'data');
+            });
+
+            test('rejects invalid brand_id', function () {
+                $response = $this->getJson('/api/v1/products?brand_id=99999');
+
+                $response->assertUnprocessable()
+                    ->assertJsonValidationErrors(['brand_id']);
+            });
+
+            test('rejects invalid brand_id in array', function () {
+                $brand = Brand::factory()->create();
+                $response = $this->getJson("/api/v1/products?brand_id[]={$brand->id}&brand_id[]=99999");
+
+                $response->assertUnprocessable()
+                    ->assertJsonValidationErrors(['brand_id']);
+            });
+
+            test('rejects empty brand_id array', function () {
+                // Test validation directly with an empty array
+                $request = \App\Http\Requests\IndexProductRequest::create('/api/v1/products', 'GET', ['brand_id' => []]);
+                $validator = \Illuminate\Support\Facades\Validator::make($request->all(), $request->rules());
+
+                expect($validator->fails())->toBeTrue()
+                    ->and($validator->errors()->has('brand_id'))->toBeTrue();
             });
         });
 

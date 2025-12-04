@@ -79,7 +79,15 @@ class Product extends Model
 
         // Apply brand filter (id or slug)
         if (isset($filter['brand_id'])) {
-            $query->where('brand_id', $filter['brand_id']);
+            if (is_array($filter['brand_id'])) {
+                $brandIds = unique(array_map('intval', $filter['brand_id']));
+                // Safeguard: skip empty arrays to avoid SQL errors
+                if (! empty($brandIds)) {
+                    $query->whereIn('brand_id', $brandIds);
+                }
+            } else {
+                $query->where('brand_id', (int) $filter['brand_id']);
+            }
         } elseif (isset($filter['brand_slug'])) {
             $query->whereHas('brand', function ($q) use ($filter) {
                 $q->where('slug', $filter['brand_slug']);

@@ -38,7 +38,38 @@ class IndexProductRequest extends FormRequest
             'page' => 'integer|min:1',
             'per_page' => 'integer|min:1|max:100',
             'category_id' => 'integer|exists:categories,id',
-            'brand_id' => 'integer|exists:brands,id',
+            'brand_id' => [
+                'nullable',
+                function ($attribute, $value, $fail) {
+                    if (is_array($value)) {
+                        // Reject empty arrays
+                        if (empty($value)) {
+                            $fail('The '.$attribute.' must not be empty when provided as an array.');
+
+                            return;
+                        }
+
+                        // Check that all values are integers
+                        $brandIds = [];
+                        foreach ($value as $id) {
+                            if (! is_numeric($id)) {
+                                $fail('The '.$attribute.' must be an array of integers.');
+
+                                return;
+                            }
+                            $brandIds[] = (int) $id;
+                        }
+
+                        // Make one request with whereIn and check results count == array length
+                        $validBrandsCount = \App\Models\Brand::whereIn('id', $brandIds)->count();
+                        if ($validBrandsCount !== count($brandIds)) {
+                            $fail('The '.$attribute.' must be an array of valid brand IDs.');
+                        }
+                    } elseif (! is_numeric($value) || ! \App\Models\Brand::where('id', (int) $value)->exists()) {
+                        $fail('The '.$attribute.' must be a valid brand ID.');
+                    }
+                },
+            ],
             'brand_slug' => 'string|exists:brands,slug',
             'sort_by' => 'string|in:title,price,created_at',
             'sort_direction' => 'string|in:asc,desc',
