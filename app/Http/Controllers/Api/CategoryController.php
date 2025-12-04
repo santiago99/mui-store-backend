@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\FilterType;
+use App\Enums\ProductFieldType;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\CategoryResource;
 use App\Http\Resources\ProductFilterResource;
 use App\Models\Category;
+use App\Models\ProductField;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
@@ -61,6 +64,38 @@ class CategoryController extends Controller
 
         ProductFilterResource::cacheProductClass($productClass);
 
-        return ProductFilterResource::collection($filterableFields);
+        // Create synthetic Brand filter
+        $brandFilter = $this->createBrandFilter($productClass);
+
+        // Prepend Brand filter to the collection
+        $allFilters = collect([$brandFilter])->merge($filterableFields);
+
+        return ProductFilterResource::collection($allFilters);
+    }
+
+    /**
+     * Create a synthetic Brand filter object.
+     */
+    private function createBrandFilter($productClass): ProductField
+    {
+        $brandFilter = new ProductField;
+        $brandFilter->setAttribute('id', -1);
+        $brandFilter->setAttribute('name', 'Brand');
+        $brandFilter->setAttribute('slug', 'brand');
+        $brandFilter->setAttribute('type', ProductFieldType::String);
+        $brandFilter->setAttribute('options', null);
+        $brandFilter->exists = true; // Mark as existing so it behaves like a loaded model
+
+        // Create pivot object with required properties
+        $pivot = new \stdClass;
+        $pivot->product_class_id = $productClass->id;
+        $pivot->filter_type = FilterType::Checkboxes->value;
+        $pivot->filter_weight = -1;
+        $pivot->options = null;
+
+        // Set the pivot relationship
+        $brandFilter->setRelation('pivot', $pivot);
+
+        return $brandFilter;
     }
 }

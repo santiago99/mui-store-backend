@@ -2,11 +2,13 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Brand;
 use App\Models\ProductClass;
 use App\Models\ProductField;
 use App\Models\ProductFieldValue;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\DB;
 
 class ProductFilterResource extends JsonResource
 {
@@ -52,12 +54,17 @@ class ProductFilterResource extends JsonResource
             $minMax = $this->calculateMinMax($this->pivot->product_class_id);
             $data['min'] = $minMax['min'];
             $data['max'] = $minMax['max'];
-            //$data['dbg'] = $minMax['dbg'];
+            // $data['dbg'] = $minMax['dbg'];
         }
 
         // Calculate filter options for checkboxes/select
         if (in_array($filterType, [\App\Enums\FilterType::Checkboxes, \App\Enums\FilterType::Select])) {
-            $data['filterOptions'] = $this->calculateFilterOptions($this->pivot->product_class_id);
+            // Handle Brand filter specially
+            if ($this->id === -1) {
+                $data['filterOptions'] = $this->calculateBrandFilterOptions($this->pivot->product_class_id);
+            } else {
+                $data['filterOptions'] = $this->calculateFilterOptions($this->pivot->product_class_id);
+            }
         }
 
         return $data;
@@ -95,36 +102,101 @@ class ProductFilterResource extends JsonResource
     /**
      * Calculate filter options for checkboxes/select filters.
      *
-     * @return array<int|float|string>
+     * @return array<int, array{value: mixed, displayValue: mixed, count: int}>
      */
     private function calculateFilterOptions(int $productClassId): array
     {
-        // Use enum options from ProductField if available
-        if ($this->type === \App\Enums\ProductFieldType::Enum && ! empty($this->options['enum_options'])) {
-            return $this->options['enum_options'];
-        }
-
         $productClass = self::getProductClass($productClassId);
         if (! $productClass) {
             return [];
         }
 
-        // Get distinct values from product_field_values
         $productIds = $this->getProductIds($productClass);
-        $query = ProductFieldValue::where('product_field_id', $this->id)
-            ->whereIn('product_id', $productIds);
 
+        // Use enum options from ProductField if available
+        if ($this->type === \App\Enums\ProductFieldType::Enum && ! empty($this->options['enum_options'])) {
+            $enumOptions = $this->options['enum_options'];
+            $result = [];
+
+            foreach ($enumOptions as $enumValue) {
+                $count = ProductFieldValue::where('product_field_id', $this->id)
+                    ->whereIn('product_id', $productIds)
+                    ->where('value_string', $enumValue)
+                    ->count();
+
+                $result[] = [
+                    'value' => $enumValue,
+                    'displayValue' => $enumValue,
+                    'count' => $count,
+                ];
+            }
+
+            return $result;
+        }
+
+        // Get distinct values with counts from product_field_values
         $valueField = match ($this->type) {
             \App\Enums\ProductFieldType::Integer => 'value_int',
             \App\Enums\ProductFieldType::Float => 'value_float',
             default => 'value_string',
         };
 
-        return $query->whereNotNull($valueField)
-            ->distinct()
-            ->orderBy($valueField)
-            ->pluck($valueField)
-            ->toArray();
+        $results = DB::table('product_field_values')
+            ->selectRaw("{$valueField} as value, COUNT(*) as count")
+            ->where('product_field_id', $this->id)
+            ->whereIn('product_id', $productIds)
+            ->whereNotNull($valueField)
+            ->groupBy('value')
+            ->orderBy('value')
+            ->get();
+
+        \Illuminate\Support\Facades\Log::info('dbg', [
+          'product_field_id' => $this->id,
+          'product_ids' => $productIds->toArray(), 
+          'valueField' => $valueField, 
+          //'results' => $results->toArray()
+        ]);
+
+        return $results->map(function ($item) {
+            return [
+                'value' => $item->value,
+                'displayValue' => $item->value,
+                'count' => (int) $item->count,
+            ];
+        })->toArray();
+    }
+
+    /**
+     * Calculate brand filter options for checkboxes/select filters.
+     *
+     * @return array<int, array{value: mixed, displayValue: mixed, count: int}>
+     */
+    private function calculateBrandFilterOptions(int $productClassId): array
+    {
+        $productClass = self::getProductClass($productClassId);
+        if (! $productClass) {
+            return [];
+        }
+
+        $productIds = $this->getProductIds($productClass);
+
+        // Get brands that are used by products in this product class, with counts
+        $results = Brand::whereHas('products', function ($query) use ($productIds) {
+            $query->whereIn('products.id', $productIds);
+        })
+            ->withCount(['products' => function ($query) use ($productIds) {
+                $query->whereIn('products.id', $productIds);
+            }])
+            ->orderBy('name')
+            ->get();
+
+        return $results->map(function ($brand) {
+            return [
+                'value' => $brand->id,
+                'displayValue' => $brand->name,
+                'count' => (int) $brand->products_count,
+            ];
+        })->toArray();
     }
 
     /**
