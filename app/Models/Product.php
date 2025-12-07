@@ -80,7 +80,7 @@ class Product extends Model
         // Apply brand filter (id or slug)
         if (isset($filter['brand_id'])) {
             if (is_array($filter['brand_id'])) {
-                $brandIds = unique(array_map('intval', $filter['brand_id']));
+                $brandIds = array_unique(array_map('intval', $filter['brand_id']));
                 // Safeguard: skip empty arrays to avoid SQL errors
                 if (! empty($brandIds)) {
                     $query->whereIn('brand_id', $brandIds);
