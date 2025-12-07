@@ -14,11 +14,12 @@ class ProductFieldValueResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        //return parent::toArray($request);
+        // return parent::toArray($request);
         return [
             'id' => $this->productField->id,
             'type' => $this->productField->type->value,
             'name' => $this->productField->name,
+            'options' => $this->productField->options,
             'value' => $this->value,
         ];
     }
