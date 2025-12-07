@@ -18,7 +18,7 @@ class ProductController extends Controller
         $filter = $request->validated();
 
         // Get paginated results
-        $products = Product::with('category', 'brand')
+        $products = Product::with('category', 'brand', 'fieldValues.productField')
             ->defaultFilter($filter)
             ->paginate($filter['per_page']);
 
