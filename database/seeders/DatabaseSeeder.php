@@ -7,8 +7,6 @@ use App\Models\Role;
 use App\Models\User;
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class DatabaseSeeder extends Seeder
 {
@@ -35,7 +33,7 @@ class DatabaseSeeder extends Seeder
         $this->seedRolesAndAdmin();
 
         // Create categories and product classes first
-        $this->call(ProductCatalogSeeder::class);
+        $this->call(ProductCatalogImportSeeder::class);
 
         $this->createUsersWithCartItems();
         // User::factory(10)->hasCartItems(3)->create();
@@ -65,7 +63,7 @@ class DatabaseSeeder extends Seeder
     {
         $customerRoleId = Role::query()->where('name', Role::CUSTOMER)->value('id');
 
-        for ($i = 0; $i < 10; $i++) {
+        for ($i = 0; $i < 4; $i++) {
             $itemsCount = mt_rand(0, 5);
             $user = User::factory()->state([
                 'email' => 'example'.$i.'@example.com',
