@@ -67,8 +67,11 @@ class CategoryController extends Controller
         // Create synthetic Brand filter
         $brandFilter = $this->createBrandFilter($productClass);
 
-        // Prepend Brand filter to the collection
-        $allFilters = collect([$brandFilter])->merge($filterableFields);
+        // Create synthetic Price filter
+        $priceFilter = $this->createPriceFilter($productClass);
+
+        // Prepend Brand and Price filters to the collection
+        $allFilters = collect([$brandFilter, $priceFilter])->merge($filterableFields);
 
         return ProductFilterResource::collection($allFilters);
     }
@@ -97,5 +100,31 @@ class CategoryController extends Controller
         $brandFilter->setRelation('pivot', $pivot);
 
         return $brandFilter;
+    }
+
+    /**
+     * Create a synthetic Price filter object.
+     */
+    private function createPriceFilter($productClass): ProductField
+    {
+        $priceFilter = new ProductField;
+        $priceFilter->setAttribute('id', -2);
+        $priceFilter->setAttribute('name', 'Price');
+        $priceFilter->setAttribute('slug', 'price');
+        $priceFilter->setAttribute('type', ProductFieldType::Float);
+        $priceFilter->setAttribute('options', null);
+        $priceFilter->exists = true; // Mark as existing so it behaves like a loaded model
+
+        // Create pivot object with required properties
+        $pivot = new \stdClass;
+        $pivot->product_class_id = $productClass->id;
+        $pivot->filter_type = FilterType::Range->value;
+        $pivot->filter_weight = -2;
+        $pivot->options = null;
+
+        // Set the pivot relationship
+        $priceFilter->setRelation('pivot', $pivot);
+
+        return $priceFilter;
     }
 }

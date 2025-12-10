@@ -71,8 +71,25 @@ class IndexProductRequest extends FormRequest
                 },
             ],
             'brand_slug' => 'string|exists:brands,slug',
+            'price_min' => 'nullable|numeric|min:0',
+            'price_max' => 'nullable|numeric|min:0',
             'sort_by' => 'string|in:title,price,created_at',
             'sort_direction' => 'string|in:asc,desc',
         ];
+    }
+
+    /**
+     * Configure the validator instance.
+     */
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator) {
+            $priceMin = $this->input('price_min');
+            $priceMax = $this->input('price_max');
+
+            if ($priceMin !== null && $priceMax !== null && (float) $priceMax < (float) $priceMin) {
+                $validator->errors()->add('price_max', 'The price_max must be greater than or equal to price_min.');
+            }
+        });
     }
 }

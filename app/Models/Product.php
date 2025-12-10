@@ -67,6 +67,14 @@ class Product extends Model
     }
 
     /**
+     * Get the collections that contain the product.
+     */
+    public function collections()
+    {
+        return $this->belongsToMany(Collection::class, 'collection_product');
+    }
+
+    /**
      * Scope a query to apply filters for category, brand, and sorting.
      */
     #[Scope]
@@ -92,6 +100,15 @@ class Product extends Model
             $query->whereHas('brand', function ($q) use ($filter) {
                 $q->where('slug', $filter['brand_slug']);
             });
+        }
+
+        // Apply price range filter
+        if (isset($filter['price_min']) && isset($filter['price_max'])) {
+            $query->whereBetween('price', [(float) $filter['price_min'], (float) $filter['price_max']]);
+        } elseif (isset($filter['price_min'])) {
+            $query->where('price', '>=', (float) $filter['price_min']);
+        } elseif (isset($filter['price_max'])) {
+            $query->where('price', '<=', (float) $filter['price_max']);
         }
 
         // Apply sorting

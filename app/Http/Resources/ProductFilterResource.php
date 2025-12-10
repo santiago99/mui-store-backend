@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Models\Brand;
+use App\Models\Product;
 use App\Models\ProductClass;
 use App\Models\ProductField;
 use App\Models\ProductFieldValue;
@@ -86,6 +87,21 @@ class ProductFilterResource extends JsonResource
 
         $productIds = $this->getProductIds($productClass);
         $dbg['product_ids'] = $productIds;
+
+        // Handle Price filter (id === -2) - query products table directly
+        if ($this->id === -2) {
+            $result = Product::whereIn('id', $productIds)
+                ->selectRaw('MIN(price) as min_price, MAX(price) as max_price')
+                ->first();
+
+            return [
+                'min' => $result?->min_price,
+                'max' => $result?->max_price,
+                'dbg' => $dbg,
+            ];
+        }
+
+        // Handle other filters - query ProductFieldValue table
         $values = ProductFieldValue::where('product_field_id', $this->id)
             ->whereIn('product_id', $productIds)
             ->get();
@@ -151,10 +167,10 @@ class ProductFilterResource extends JsonResource
             ->get();
 
         \Illuminate\Support\Facades\Log::info('dbg', [
-          'product_field_id' => $this->id,
-          'product_ids' => $productIds->toArray(), 
-          'valueField' => $valueField, 
-          //'results' => $results->toArray()
+            'product_field_id' => $this->id,
+            'product_ids' => $productIds->toArray(),
+            'valueField' => $valueField,
+            // 'results' => $results->toArray()
         ]);
 
         return $results->map(function ($item) {
