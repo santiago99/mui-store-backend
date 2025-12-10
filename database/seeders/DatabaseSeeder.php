@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\CartItem;
+use App\Models\Collection;
 use App\Models\Role;
 use App\Models\User;
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
@@ -19,10 +20,12 @@ class DatabaseSeeder extends Seeder
         }
 
         // \Illuminate\Support\Facades\Log::debug(self::$productIds);
-        $randomProductIds = $count == 1 ? [array_rand(self::$productIds)] : array_rand(self::$productIds, $count);
+        // Get $count random product indices
+        $randomProductIndices = $count == 1 ? [array_rand(self::$productIds)] : array_rand(self::$productIds, $count);
 
         // \Illuminate\Support\Facades\Log::debug($randomProductIds);
-        return array_map(fn ($id) => self::$productIds[$id], $randomProductIds);
+        // Map the random product indices to product IDs'
+        return array_map(fn ($index) => self::$productIds[$index], $randomProductIndices);
     }
 
     /**
@@ -35,6 +38,7 @@ class DatabaseSeeder extends Seeder
         // Create categories and product classes first
         $this->call(ProductCatalogImportSeeder::class);
 
+        $this->createCollections();
         $this->createUsersWithCartItems();
         // User::factory(10)->hasCartItems(3)->create();
     }
@@ -78,5 +82,32 @@ class DatabaseSeeder extends Seeder
                 }
             }
         }
+    }
+
+    private function createCollections(): void
+    {
+        $productIds = \App\Models\Product::pluck('id')->toArray();
+
+        if (count($productIds) < 12) {
+            return; // Not enough products to create collections
+        }
+
+        // Create 'new' collection
+        $newCollection = Collection::firstOrCreate(
+            ['slug' => 'new'],
+            ['name' => 'New']
+        );
+
+        $newProductIds = $this->getRandomProductIds(12);
+        $newCollection->products()->sync($newProductIds);
+
+        // Create 'featured' collection
+        $featuredCollection = Collection::firstOrCreate(
+            ['slug' => 'featured'],
+            ['name' => 'Featured']
+        );
+
+        $featuredProductIds = $this->getRandomProductIds(12);
+        $featuredCollection->products()->sync($featuredProductIds);
     }
 }

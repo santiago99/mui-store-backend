@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\ProductFieldController;
 use App\Http\Controllers\Api\BrandController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\CategoryController as ApiCategoryController;
+use App\Http\Controllers\Api\CollectionController;
 use App\Http\Controllers\Api\ProductClassController as ApiProductClassController;
 use App\Http\Controllers\Api\ProductController as ApiProductController;
 use App\Http\Controllers\Api\UserController;
@@ -39,8 +40,9 @@ Route::prefix('v1')->group(function () {
     Route::get('categories/{category}', [ApiCategoryController::class, 'show']);
     Route::get('categories/{category}/products', [ApiCategoryController::class, 'products']);
     Route::get('categories/{category}/filters', [ApiCategoryController::class, 'filters']);
-    Route::get('product-classes/{productClass}/filters', [ApiProductClassController::class, 'getFilters']);
+    // Route::get('product-classes/{productClass}/filters', [ApiProductClassController::class, 'getFilters']);
     Route::get('brands/{brand:slug}', [BrandController::class, 'show']);
+    Route::get('collections/{collection:slug}', [CollectionController::class, 'products']);
 });
 
 // Admin routes (mutating operations) - require admin middleware and /admin prefix
