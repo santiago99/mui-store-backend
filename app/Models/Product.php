@@ -118,6 +118,155 @@ class Product extends Model
     }
 
     /**
+     * Scope a query to apply filters from the filters parameter.
+     */
+    #[Scope]
+    protected function extendedFilter(Builder $query, array $filters): void
+    {
+        if (empty($filters)) {
+            return;
+        }
+
+        foreach ($filters as $key => $value) {
+            $filterKey = (string) $key;
+
+            // Handle virtual filters
+            if ($filterKey === '-1') {
+                // Brand filter: array of brand_ids
+                if (is_array($value) && ! empty($value)) {
+                    $brandIds = array_unique(array_map('intval', $value));
+                    if (! empty($brandIds)) {
+                        $query->whereIn('brand_id', $brandIds);
+                    }
+                }
+
+                continue;
+            }
+
+            if ($filterKey === '-2') {
+                // Price filter: min/max range
+                if (is_array($value)) {
+                    if (isset($value['min']) && isset($value['max'])) {
+                        $query->whereBetween('price', [(float) $value['min'], (float) $value['max']]);
+                    } elseif (isset($value['min'])) {
+                        $query->where('price', '>=', (float) $value['min']);
+                    } elseif (isset($value['max'])) {
+                        $query->where('price', '<=', (float) $value['max']);
+                    }
+                }
+
+                continue;
+            }
+
+            // Handle product field filters
+            $productFieldId = (int) $filterKey;
+            if ($productFieldId <= 0) {
+                continue;
+            }
+
+            // Get the product field to determine its type
+            $productField = \App\Models\ProductField::find($productFieldId);
+            if (! $productField) {
+                continue;
+            }
+
+            // Determine filter type from value structure
+            if (is_array($value)) {
+                // Check if it's a range filter (has min/max keys)
+                if (isset($value['min']) || isset($value['max'])) {
+                    $this->applyRangeFilter($query, $productField, $value);
+                } else {
+                    // Checkboxes/select filter: array of values
+                    $this->applyMultiValueFilter($query, $productField, $value);
+                }
+            } else {
+                // Textfield filter: single value
+                $this->applyTextfieldFilter($query, $productField, $value);
+            }
+        }
+    }
+
+    /**
+     * Apply a range filter for a product field.
+     */
+    protected function applyRangeFilter(Builder $query, \App\Models\ProductField $productField, array $range): void
+    {
+        $valueColumn = match ($productField->type) {
+            \App\Enums\ProductFieldType::Integer => 'value_int',
+            \App\Enums\ProductFieldType::Float => 'value_float',
+            default => 'value_string',
+        };
+
+        $query->whereHas('fieldValues', function ($q) use ($productField, $range, $valueColumn) {
+            $q->where('product_field_id', $productField->id);
+
+            if (isset($range['min']) && isset($range['max'])) {
+                $q->whereBetween($valueColumn, [(float) $range['min'], (float) $range['max']]);
+            } elseif (isset($range['min'])) {
+                $q->where($valueColumn, '>=', (float) $range['min']);
+            } elseif (isset($range['max'])) {
+                $q->where($valueColumn, '<=', (float) $range['max']);
+            }
+        });
+    }
+
+    /**
+     * Apply a multi-value filter (checkboxes/select) for a product field.
+     */
+    protected function applyMultiValueFilter(Builder $query, \App\Models\ProductField $productField, array $values): void
+    {
+        if (empty($values)) {
+            return;
+        }
+
+        $valueColumn = match ($productField->type) {
+            \App\Enums\ProductFieldType::Integer => 'value_int',
+            \App\Enums\ProductFieldType::Float => 'value_float',
+            default => 'value_string',
+        };
+
+        // Convert values to appropriate types
+        $typedValues = match ($productField->type) {
+            \App\Enums\ProductFieldType::Integer => array_map('intval', $values),
+            \App\Enums\ProductFieldType::Float => array_map('floatval', $values),
+            default => array_map('strval', $values),
+        };
+
+        $query->whereHas('fieldValues', function ($q) use ($productField, $typedValues, $valueColumn) {
+            $q->where('product_field_id', $productField->id)
+                ->whereIn($valueColumn, $typedValues);
+        });
+    }
+
+    /**
+     * Apply a textfield filter for a product field.
+     */
+    protected function applyTextfieldFilter(Builder $query, \App\Models\ProductField $productField, mixed $value): void
+    {
+        $valueColumn = match ($productField->type) {
+            \App\Enums\ProductFieldType::Integer => 'value_int',
+            \App\Enums\ProductFieldType::Float => 'value_float',
+            default => 'value_string',
+        };
+
+        $query->whereHas('fieldValues', function ($q) use ($productField, $value, $valueColumn) {
+            $q->where('product_field_id', $productField->id);
+
+            // For string fields, use LIKE for partial matching; for numeric, use exact match
+            if ($productField->type === \App\Enums\ProductFieldType::String || $productField->type === \App\Enums\ProductFieldType::Enum) {
+                $q->where($valueColumn, 'LIKE', '%'.(string) $value.'%');
+            } else {
+                $typedValue = match ($productField->type) {
+                    \App\Enums\ProductFieldType::Integer => (int) $value,
+                    \App\Enums\ProductFieldType::Float => (float) $value,
+                    default => $value,
+                };
+                $q->where($valueColumn, $typedValue);
+            }
+        });
+    }
+
+    /**
      * Set the product class ID (only allowed during creation).
      */
     public function setProductClassId(string $productClassId): void

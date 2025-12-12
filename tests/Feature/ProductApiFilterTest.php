@@ -1,8 +1,11 @@
 <?php
 
+use App\Enums\ProductFieldType;
 use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Product;
+use App\Models\ProductField;
+use App\Models\ProductFieldValue;
 
 beforeEach(function () {
     // Refresh database before each test
@@ -400,6 +403,461 @@ describe('Product API Filterins and sorting', function () {
                     ->assertJsonPath('meta.current_page', 1)
                     ->assertJsonPath('meta.per_page', 5)
                     ->assertJsonPath('meta.total', 10);
+            });
+        });
+
+        describe('filters parameter', function () {
+            describe('virtual filter -1 (Brand)', function () {
+                test('can filter products by brand using filters parameter', function () {
+                    $brand1 = Brand::factory()->create(['name' => 'Brand One']);
+                    $brand2 = Brand::factory()->create(['name' => 'Brand Two']);
+                    $brand3 = Brand::factory()->create(['name' => 'Brand Three']);
+
+                    $productsBrand1 = Product::factory()->count(2)->create(['brand_id' => $brand1->id]);
+                    $productsBrand2 = Product::factory()->count(3)->create(['brand_id' => $brand2->id]);
+                    $productsBrand3 = Product::factory()->count(1)->create(['brand_id' => $brand3->id]);
+
+                    $filters = json_encode(['-1' => [$brand1->id, $brand2->id]]);
+                    $response = $this->getJson("/api/v1/products?filters={$filters}");
+
+                    $response->assertSuccessful()
+                        ->assertJsonCount(5, 'data');
+
+                    $brandIds = collect($response->json('data'))->pluck('brand.id')->unique()->sort()->values();
+                    expect($brandIds)->toContain($brand1->id, $brand2->id)
+                        ->not->toContain($brand3->id);
+                });
+
+                test('returns empty array when no products match brand filter', function () {
+                    $brand = Brand::factory()->create();
+                    Product::factory()->count(2)->create(); // Products with other brands
+
+                    $filters = json_encode(['-1' => [$brand->id]]);
+                    $response = $this->getJson("/api/v1/products?filters={$filters}");
+
+                    $response->assertSuccessful()
+                        ->assertJsonCount(0, 'data');
+                });
+            });
+
+            describe('virtual filter -2 (Price)', function () {
+                test('can filter products by price range using filters parameter', function () {
+                    $product1 = Product::factory()->create(['price' => 50.00]);
+                    $product2 = Product::factory()->create(['price' => 100.00]);
+                    $product3 = Product::factory()->create(['price' => 150.00]);
+                    $product4 = Product::factory()->create(['price' => 200.00]);
+
+                    $filters = json_encode(['-2' => ['min' => 75.00, 'max' => 175.00]]);
+                    $response = $this->getJson("/api/v1/products?filters={$filters}");
+
+                    $response->assertSuccessful()
+                        ->assertJsonCount(2, 'data');
+
+                    $prices = collect($response->json('data'))->pluck('price')->sort()->values();
+                    expect($prices)->toContain('100.00', '150.00')
+                        ->not->toContain('50.00', '200.00');
+                });
+
+                test('can filter products by price min only', function () {
+                    $product1 = Product::factory()->create(['price' => 50.00]);
+                    $product2 = Product::factory()->create(['price' => 100.00]);
+                    $product3 = Product::factory()->create(['price' => 150.00]);
+
+                    $filters = json_encode(['-2' => ['min' => 100.00]]);
+                    $response = $this->getJson("/api/v1/products?filters={$filters}");
+
+                    $response->assertSuccessful()
+                        ->assertJsonCount(2, 'data');
+
+                    $prices = collect($response->json('data'))->pluck('price')->sort()->values();
+                    expect($prices)->toContain('100.00', '150.00')
+                        ->not->toContain('50.00');
+                });
+
+                test('can filter products by price max only', function () {
+                    $product1 = Product::factory()->create(['price' => 50.00]);
+                    $product2 = Product::factory()->create(['price' => 100.00]);
+                    $product3 = Product::factory()->create(['price' => 150.00]);
+
+                    $filters = json_encode(['-2' => ['max' => 100.00]]);
+                    $response = $this->getJson("/api/v1/products?filters={$filters}");
+
+                    $response->assertSuccessful()
+                        ->assertJsonCount(2, 'data');
+
+                    $prices = collect($response->json('data'))->pluck('price')->sort()->values();
+                    expect($prices)->toContain('50.00', '100.00')
+                        ->not->toContain('150.00');
+                });
+            });
+
+            describe('product field textfield filter', function () {
+                test('can filter products by textfield product field', function () {
+                    $productField = ProductField::factory()->create([
+                        'type' => ProductFieldType::String,
+                        'name' => 'Color',
+                    ]);
+
+                    $product1 = Product::factory()->create();
+                    $product2 = Product::factory()->create();
+                    $product3 = Product::factory()->create();
+
+                    ProductFieldValue::factory()->create([
+                        'product_id' => $product1->id,
+                        'product_field_id' => $productField->id,
+                        'value_string' => 'Red',
+                    ]);
+                    ProductFieldValue::factory()->create([
+                        'product_id' => $product2->id,
+                        'product_field_id' => $productField->id,
+                        'value_string' => 'Blue',
+                    ]);
+                    ProductFieldValue::factory()->create([
+                        'product_id' => $product3->id,
+                        'product_field_id' => $productField->id,
+                        'value_string' => 'Red',
+                    ]);
+
+                    $filters = json_encode([$productField->id => 'Red']);
+                    $response = $this->getJson("/api/v1/products?filters={$filters}");
+
+                    $response->assertSuccessful()
+                        ->assertJsonCount(2, 'data');
+
+                    $productIds = collect($response->json('data'))->pluck('id')->toArray();
+                    expect($productIds)->toContain($product1->id, $product3->id)
+                        ->not->toContain($product2->id);
+                });
+
+                test('textfield filter uses LIKE for partial matching', function () {
+                    $productField = ProductField::factory()->create([
+                        'type' => ProductFieldType::String,
+                        'name' => 'Model',
+                    ]);
+
+                    $product1 = Product::factory()->create();
+                    $product2 = Product::factory()->create();
+
+                    ProductFieldValue::factory()->create([
+                        'product_id' => $product1->id,
+                        'product_field_id' => $productField->id,
+                        'value_string' => 'iPhone 15',
+                    ]);
+                    ProductFieldValue::factory()->create([
+                        'product_id' => $product2->id,
+                        'product_field_id' => $productField->id,
+                        'value_string' => 'Samsung Galaxy',
+                    ]);
+
+                    $filters = json_encode([$productField->id => 'iPhone']);
+                    $response = $this->getJson("/api/v1/products?filters={$filters}");
+
+                    $response->assertSuccessful()
+                        ->assertJsonCount(1, 'data')
+                        ->assertJsonPath('data.0.id', $product1->id);
+                });
+            });
+
+            describe('product field range filter', function () {
+                test('can filter products by integer range product field', function () {
+                    $productField = ProductField::factory()->create([
+                        'type' => ProductFieldType::Integer,
+                        'name' => 'RAM',
+                    ]);
+
+                    $product1 = Product::factory()->create();
+                    $product2 = Product::factory()->create();
+                    $product3 = Product::factory()->create();
+
+                    ProductFieldValue::factory()->create([
+                        'product_id' => $product1->id,
+                        'product_field_id' => $productField->id,
+                        'value_int' => 8,
+                    ]);
+                    ProductFieldValue::factory()->create([
+                        'product_id' => $product2->id,
+                        'product_field_id' => $productField->id,
+                        'value_int' => 16,
+                    ]);
+                    ProductFieldValue::factory()->create([
+                        'product_id' => $product3->id,
+                        'product_field_id' => $productField->id,
+                        'value_int' => 32,
+                    ]);
+
+                    $filters = json_encode([$productField->id => ['min' => 10, 'max' => 20]]);
+                    $response = $this->getJson("/api/v1/products?filters={$filters}");
+
+                    $response->assertSuccessful()
+                        ->assertJsonCount(1, 'data')
+                        ->assertJsonPath('data.0.id', $product2->id);
+                });
+
+                test('can filter products by float range product field', function () {
+                    $productField = ProductField::factory()->create([
+                        'type' => ProductFieldType::Float,
+                        'name' => 'Weight',
+                    ]);
+
+                    $product1 = Product::factory()->create();
+                    $product2 = Product::factory()->create();
+                    $product3 = Product::factory()->create();
+
+                    ProductFieldValue::factory()->create([
+                        'product_id' => $product1->id,
+                        'product_field_id' => $productField->id,
+                        'value_float' => 1.5,
+                    ]);
+                    ProductFieldValue::factory()->create([
+                        'product_id' => $product2->id,
+                        'product_field_id' => $productField->id,
+                        'value_float' => 2.0,
+                    ]);
+                    ProductFieldValue::factory()->create([
+                        'product_id' => $product3->id,
+                        'product_field_id' => $productField->id,
+                        'value_float' => 3.5,
+                    ]);
+
+                    $filters = json_encode([$productField->id => ['min' => 1.8, 'max' => 2.5]]);
+                    $response = $this->getJson("/api/v1/products?filters={$filters}");
+
+                    $response->assertSuccessful()
+                        ->assertJsonCount(1, 'data')
+                        ->assertJsonPath('data.0.id', $product2->id);
+                });
+            });
+
+            describe('product field checkboxes/select filter', function () {
+                test('can filter products by array of values (checkboxes/select)', function () {
+                    $productField = ProductField::factory()->create([
+                        'type' => ProductFieldType::Enum,
+                        'name' => 'Operating System',
+                    ]);
+
+                    $product1 = Product::factory()->create();
+                    $product2 = Product::factory()->create();
+                    $product3 = Product::factory()->create();
+                    $product4 = Product::factory()->create();
+
+                    ProductFieldValue::factory()->create([
+                        'product_id' => $product1->id,
+                        'product_field_id' => $productField->id,
+                        'value_string' => 'Windows',
+                    ]);
+                    ProductFieldValue::factory()->create([
+                        'product_id' => $product2->id,
+                        'product_field_id' => $productField->id,
+                        'value_string' => 'macOS',
+                    ]);
+                    ProductFieldValue::factory()->create([
+                        'product_id' => $product3->id,
+                        'product_field_id' => $productField->id,
+                        'value_string' => 'Linux',
+                    ]);
+                    ProductFieldValue::factory()->create([
+                        'product_id' => $product4->id,
+                        'product_field_id' => $productField->id,
+                        'value_string' => 'Windows',
+                    ]);
+
+                    $filters = json_encode([$productField->id => ['Windows', 'macOS']]);
+                    $response = $this->getJson("/api/v1/products?filters={$filters}");
+
+                    $response->assertSuccessful()
+                        ->assertJsonCount(3, 'data');
+
+                    $productIds = collect($response->json('data'))->pluck('id')->toArray();
+                    expect($productIds)->toContain($product1->id, $product2->id, $product4->id)
+                        ->not->toContain($product3->id);
+                });
+
+                test('can filter products by integer array values', function () {
+                    $productField = ProductField::factory()->create([
+                        'type' => ProductFieldType::Integer,
+                        'name' => 'Storage',
+                    ]);
+
+                    $product1 = Product::factory()->create();
+                    $product2 = Product::factory()->create();
+                    $product3 = Product::factory()->create();
+
+                    ProductFieldValue::factory()->create([
+                        'product_id' => $product1->id,
+                        'product_field_id' => $productField->id,
+                        'value_int' => 128,
+                    ]);
+                    ProductFieldValue::factory()->create([
+                        'product_id' => $product2->id,
+                        'product_field_id' => $productField->id,
+                        'value_int' => 256,
+                    ]);
+                    ProductFieldValue::factory()->create([
+                        'product_id' => $product3->id,
+                        'product_field_id' => $productField->id,
+                        'value_int' => 512,
+                    ]);
+
+                    $filters = json_encode([$productField->id => [128, 512]]);
+                    $response = $this->getJson("/api/v1/products?filters={$filters}");
+
+                    $response->assertSuccessful()
+                        ->assertJsonCount(2, 'data');
+
+                    $productIds = collect($response->json('data'))->pluck('id')->toArray();
+                    expect($productIds)->toContain($product1->id, $product3->id)
+                        ->not->toContain($product2->id);
+                });
+            });
+
+            describe('combined filters', function () {
+                test('can combine virtual filters with product field filters', function () {
+                    $category = Category::factory()->create();
+                    $brand = Brand::factory()->create();
+                    $productField = ProductField::factory()->create([
+                        'type' => ProductFieldType::String,
+                        'name' => 'Color',
+                    ]);
+
+                    $product1 = Product::factory()->create(['category_id' => $category->id, 'brand_id' => $brand->id, 'price' => 100.00]);
+                    $product2 = Product::factory()->create(['category_id' => $category->id, 'brand_id' => $brand->id, 'price' => 200.00]);
+                    $product3 = Product::factory()->create(['category_id' => $category->id, 'brand_id' => $brand->id, 'price' => 150.00]);
+
+                    ProductFieldValue::factory()->create([
+                        'product_id' => $product1->id,
+                        'product_field_id' => $productField->id,
+                        'value_string' => 'Red',
+                    ]);
+                    ProductFieldValue::factory()->create([
+                        'product_id' => $product2->id,
+                        'product_field_id' => $productField->id,
+                        'value_string' => 'Blue',
+                    ]);
+                    ProductFieldValue::factory()->create([
+                        'product_id' => $product3->id,
+                        'product_field_id' => $productField->id,
+                        'value_string' => 'Red',
+                    ]);
+
+                    $filters = json_encode([
+                        '-1' => [$brand->id],
+                        '-2' => ['min' => 120.00, 'max' => 180.00],
+                        $productField->id => 'Red',
+                    ]);
+                    $response = $this->getJson("/api/v1/products?filters={$filters}");
+
+                    $response->assertSuccessful()
+                        ->assertJsonCount(1, 'data')
+                        ->assertJsonPath('data.0.id', $product3->id);
+                });
+
+                test('can combine multiple product field filters', function () {
+                    $field1 = ProductField::factory()->create([
+                        'type' => ProductFieldType::String,
+                        'name' => 'Color',
+                    ]);
+                    $field2 = ProductField::factory()->create([
+                        'type' => ProductFieldType::Integer,
+                        'name' => 'RAM',
+                    ]);
+
+                    $product1 = Product::factory()->create();
+                    $product2 = Product::factory()->create();
+                    $product3 = Product::factory()->create();
+
+                    ProductFieldValue::factory()->create([
+                        'product_id' => $product1->id,
+                        'product_field_id' => $field1->id,
+                        'value_string' => 'Red',
+                    ]);
+                    ProductFieldValue::factory()->create([
+                        'product_id' => $product1->id,
+                        'product_field_id' => $field2->id,
+                        'value_int' => 16,
+                    ]);
+
+                    ProductFieldValue::factory()->create([
+                        'product_id' => $product2->id,
+                        'product_field_id' => $field1->id,
+                        'value_string' => 'Red',
+                    ]);
+                    ProductFieldValue::factory()->create([
+                        'product_id' => $product2->id,
+                        'product_field_id' => $field2->id,
+                        'value_int' => 8,
+                    ]);
+
+                    ProductFieldValue::factory()->create([
+                        'product_id' => $product3->id,
+                        'product_field_id' => $field1->id,
+                        'value_string' => 'Blue',
+                    ]);
+                    ProductFieldValue::factory()->create([
+                        'product_id' => $product3->id,
+                        'product_field_id' => $field2->id,
+                        'value_int' => 16,
+                    ]);
+
+                    $filters = json_encode([
+                        $field1->id => 'Red',
+                        $field2->id => 16,
+                    ]);
+                    $response = $this->getJson("/api/v1/products?filters={$filters}");
+
+                    $response->assertSuccessful()
+                        ->assertJsonCount(1, 'data')
+                        ->assertJsonPath('data.0.id', $product1->id);
+                });
+            });
+
+            describe('filters validation', function () {
+                test('rejects invalid filter key (non-numeric and not -1 or -2)', function () {
+                    $filters = json_encode(['invalid_key' => 'value']);
+                    $response = $this->getJson("/api/v1/products?filters={$filters}");
+
+                    $response->assertUnprocessable()
+                        ->assertJsonValidationErrors(['filters']);
+                });
+
+                test('rejects range filter with min greater than max', function () {
+                    $filters = json_encode(['-2' => ['min' => 100, 'max' => 50]]);
+                    $response = $this->getJson("/api/v1/products?filters={$filters}");
+
+                    $response->assertUnprocessable()
+                        ->assertJsonValidationErrors(['filters']);
+                });
+
+                test('rejects empty array for checkboxes/select filter', function () {
+                    $productField = ProductField::factory()->create();
+                    $filters = json_encode([$productField->id => []]);
+                    $response = $this->getJson("/api/v1/products?filters={$filters}");
+
+                    $response->assertUnprocessable()
+                        ->assertJsonValidationErrors(['filters']);
+                });
+
+                test('accepts valid filters structure', function () {
+                    $brand = Brand::factory()->create();
+                    $productField = ProductField::factory()->create([
+                        'type' => ProductFieldType::String,
+                    ]);
+
+                    $product = Product::factory()->create(['brand_id' => $brand->id]);
+                    ProductFieldValue::factory()->create([
+                        'product_id' => $product->id,
+                        'product_field_id' => $productField->id,
+                        'value_string' => 'Test',
+                    ]);
+
+                    $filters = json_encode([
+                        '-1' => [$brand->id],
+                        '-2' => ['min' => 10, 'max' => 100],
+                        $productField->id => 'Test',
+                    ]);
+                    $response = $this->getJson("/api/v1/products?filters={$filters}");
+
+                    $response->assertSuccessful();
+                });
             });
         });
     });
