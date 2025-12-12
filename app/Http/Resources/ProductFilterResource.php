@@ -95,8 +95,8 @@ class ProductFilterResource extends JsonResource
                 ->first();
 
             return [
-                'min' => $result?->min_price,
-                'max' => $result?->max_price,
+                'min' => floor($result?->min_price),
+                'max' => floor($result?->max_price),
                 'dbg' => $dbg,
             ];
         }
