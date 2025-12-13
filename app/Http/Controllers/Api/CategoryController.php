@@ -2,13 +2,11 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Enums\FilterType;
-use App\Enums\ProductFieldType;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\CategoryResource;
 use App\Http\Resources\ProductFilterResource;
 use App\Models\Category;
-use App\Models\ProductField;
+use App\Services\ProductFilterAggregator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
@@ -51,6 +49,7 @@ class CategoryController extends Controller
 
     /**
      * Get filters from product class associated with the category.
+     * Returns filters for all products in the category (not filtered).
      */
     public function filters(Category $category): AnonymousResourceCollection
     {
@@ -60,71 +59,12 @@ class CategoryController extends Controller
             return ProductFilterResource::collection(collect());
         }
 
-        $filterableFields = $productClass->filterableFields()->get();
+        // Create unfiltered query for all products in this category and its descendants
+        $unfilteredQuery = $category->getAllProducts();
 
-        ProductFilterResource::cacheProductClass($productClass);
+        $aggregator = new ProductFilterAggregator($unfilteredQuery);
+        $filterData = $aggregator->aggregateAll($productClass);
 
-        // Create synthetic Brand filter
-        $brandFilter = $this->createBrandFilter($productClass);
-
-        // Create synthetic Price filter
-        $priceFilter = $this->createPriceFilter($productClass);
-
-        // Prepend Brand and Price filters to the collection
-        $allFilters = collect([$brandFilter, $priceFilter])->merge($filterableFields);
-
-        return ProductFilterResource::collection($allFilters);
-    }
-
-    /**
-     * Create a synthetic Brand filter object.
-     */
-    private function createBrandFilter($productClass): ProductField
-    {
-        $brandFilter = new ProductField;
-        $brandFilter->setAttribute('id', -1);
-        $brandFilter->setAttribute('name', 'Brand');
-        $brandFilter->setAttribute('slug', 'brand');
-        $brandFilter->setAttribute('type', ProductFieldType::String);
-        $brandFilter->setAttribute('options', null);
-        $brandFilter->exists = true; // Mark as existing so it behaves like a loaded model
-
-        // Create pivot object with required properties
-        $pivot = new \stdClass;
-        $pivot->product_class_id = $productClass->id;
-        $pivot->filter_type = FilterType::Checkboxes->value;
-        $pivot->filter_weight = -1;
-        $pivot->options = null;
-
-        // Set the pivot relationship
-        $brandFilter->setRelation('pivot', $pivot);
-
-        return $brandFilter;
-    }
-
-    /**
-     * Create a synthetic Price filter object.
-     */
-    private function createPriceFilter($productClass): ProductField
-    {
-        $priceFilter = new ProductField;
-        $priceFilter->setAttribute('id', -2);
-        $priceFilter->setAttribute('name', 'Price');
-        $priceFilter->setAttribute('slug', 'price');
-        $priceFilter->setAttribute('type', ProductFieldType::Float);
-        $priceFilter->setAttribute('options', null);
-        $priceFilter->exists = true; // Mark as existing so it behaves like a loaded model
-
-        // Create pivot object with required properties
-        $pivot = new \stdClass;
-        $pivot->product_class_id = $productClass->id;
-        $pivot->filter_type = FilterType::Range->value;
-        $pivot->filter_weight = -2;
-        $pivot->options = null;
-
-        // Set the pivot relationship
-        $priceFilter->setRelation('pivot', $pivot);
-
-        return $priceFilter;
+        return ProductFilterResource::collection($filterData);
     }
 }
