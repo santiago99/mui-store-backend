@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Enums\FilterType;
 use App\Enums\ProductFieldType;
 use App\Models\Brand;
 use App\Models\Category;
@@ -73,7 +74,7 @@ class ProductCatalogImportSeeder extends Seeder
      */
     public function run(): void
     {
-        $jsonPath = base_path('_project/computer_store_products_extended.json');
+        $jsonPath = base_path('_project/_local/product_sample_data/computer_store_products_extended.json');
 
         if (! file_exists($jsonPath)) {
             $this->command->error("JSON file not found: {$jsonPath}");
@@ -180,7 +181,7 @@ class ProductCatalogImportSeeder extends Seeder
     private function analyzeProperty(string $propertyName, array &$data): void
     {
         // Suffixes to detect (with and without leading space, sorted by length descending)
-        $suffixes = [' MB/s', ' kg', ' GHz', ' MHz', ' Hz', ' W', 'MB/s', 'GHz', 'MHz', 'kg', 'Hz', 'W', '"'];
+        $suffixes = ['GB', 'MB/s', 'GHz', 'MHz', 'kg', 'Hz', 'W', '"'];
         $hasNumeric = false;
         $hasFloat = false;
         $hasBoolean = false;
@@ -314,16 +315,25 @@ class ProductCatalogImportSeeder extends Seeder
 
             // Attach all ProductFields used by products in this category
             $weight = 0;
+            $filterWeight = 0;
             foreach ($propertyNames as $propertyName) {
                 if (! isset($this->productFields[$propertyName])) {
                     continue;
                 }
 
-                $productClass->fields()->attach($this->productFields[$propertyName]->id, [
+                $field = $this->productFields[$propertyName];
+                
+                // Determine filter type based on field type
+                $filterType = match ($field->type) {
+                    ProductFieldType::Integer, ProductFieldType::Float => FilterType::Range,
+                    ProductFieldType::String, ProductFieldType::Enum => rand(0, 1) === 0 ? FilterType::Checkboxes : FilterType::Select,
+                };
+
+                $productClass->fields()->attach($field->id, [
                     'weight' => $weight++,
-                    'is_filter' => false,
-                    'filter_type' => null,
-                    'filter_weight' => 0,
+                    'is_filter' => true,
+                    'filter_type' => $filterType->value,
+                    'filter_weight' => $filterWeight++,
                     'options' => null,
                 ]);
             }
@@ -457,10 +467,12 @@ class ProductCatalogImportSeeder extends Seeder
             }
 
             // Create product
+            $price = isset($productData['price']) ? round((float) $productData['price'], -2) : 0;
+
             $product = Product::create([
                 'title' => $title,
                 'description' => null,
-                'price' => $productData['price'] ?? 0,
+                'price' => $price,
                 'imageUrl' => $imageUrl,
                 'category_id' => $category->id,
                 'sku' => null,
