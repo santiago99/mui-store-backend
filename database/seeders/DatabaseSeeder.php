@@ -19,6 +19,10 @@ class DatabaseSeeder extends Seeder
             self::$productIds = \App\Models\Product::pluck('id')->toArray();
         }
 
+        if (empty(self::$productIds)) {
+            $this->command->error('No product IDs found');
+            return [];
+        }
         // \Illuminate\Support\Facades\Log::debug(self::$productIds);
         // Get $count random product indices
         $randomProductIndices = $count == 1 ? [array_rand(self::$productIds)] : array_rand(self::$productIds, $count);
