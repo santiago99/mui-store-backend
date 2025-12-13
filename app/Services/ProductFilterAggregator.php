@@ -260,12 +260,17 @@ class ProductFilterAggregator
 
         foreach ($filterableFields as $field) {
             $filterType = $field->pivot->filter_type ? FilterType::from($field->pivot->filter_type) : null;
+
+            // Merge field options with pivot options (pivot options take precedence)
+            $fieldOptions = $field->options ?? [];
+            $pivotOptions = $field->pivot->options ?? [];
+
             $filterData->push($this->aggregate(
                 $field,
                 $productClass->id,
                 $filterType,
                 $field->pivot->filter_weight ?? 0,
-                $field->pivot->options
+                array_merge($fieldOptions, $pivotOptions)
             ));
         }
 
