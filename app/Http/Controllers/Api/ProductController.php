@@ -7,9 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\IndexProductRequest;
 use App\Http\Resources\ProductFilterResource;
 use App\Http\Resources\ProductResource;
-use App\Models\Category;
 use App\Models\Product;
-use App\Services\ProductFilterAggregator;
 use App\Services\ProductSearchService;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
@@ -55,24 +53,12 @@ class ProductController extends Controller
 
         $response = ProductResource::collection($products);
 
-        // Calculate filters only if category_id is present and page=1
-        // TODO: Temporary disabled (no support on frontend yet)
-        if (0 && isset($requestParams['category_id']) && $requestParams['page'] == 1) {
-            $category = Category::find($requestParams['category_id']);
-            $productClass = $category?->productClass;
+        // Get filters using service (only calculated when category_id is present and page=1)
+        $filterData = $this->searchService->getFilters($criteria);
 
-            if ($productClass) {
-                // Rebuild query for filter aggregation (needed for ProductFilterAggregator)
-                $filteredQuery = Product::with('category', 'brand')
-                    ->defaultFilter($requestParams)
-                    ->extendedFilter($filters);
-
-                $aggregator = new ProductFilterAggregator($filteredQuery);
-                $filterData = $aggregator->aggregateAll($productClass);
-
-                // Add filters to response
-                $response->additional(['filters' => ProductFilterResource::collection($filterData)]);
-            }
+        if ($filterData !== null) {
+            // Add filters to response
+            $response->additional(['filters' => ProductFilterResource::collection($filterData)]);
         }
 
         return $response;

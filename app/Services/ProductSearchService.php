@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Contracts\ProductSearchEngine;
 use App\DTO\ProductSearchCriteria;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 
 class ProductSearchService
 {
@@ -15,5 +16,10 @@ class ProductSearchService
     public function search(ProductSearchCriteria $criteria): LengthAwarePaginator
     {
         return $this->searchEngine->search($criteria);
+    }
+
+    public function getFilters(ProductSearchCriteria $criteria): ?Collection
+    {
+        return $this->searchEngine->getFilters($criteria);
     }
 }
