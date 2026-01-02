@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\DTO\ProductDTO;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -14,6 +15,45 @@ class ProductResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        // Handle ProductDTO
+        if ($this->resource instanceof ProductDTO) {
+            $dto = $this->resource;
+
+            return [
+                'id' => $dto->id,
+                'sku' => $dto->sku,
+                'title' => $dto->title,
+                'description' => $dto->description,
+                'price' => $dto->price,
+                'imageUrl' => $dto->imageUrl,
+                'categoryId' => $dto->categoryId,
+                'category' => $dto->category ? [
+                    'id' => $dto->category->id,
+                    'name' => $dto->category->name,
+                    'slug' => $dto->category->slug,
+                ] : null,
+                'productClassId' => $dto->productClassId,
+                'brandId' => $dto->brandId,
+                'brand' => $dto->brand ? [
+                    'id' => $dto->brand->id,
+                    'name' => $dto->brand->name,
+                    'slug' => $dto->brand->slug,
+                ] : null,
+                'fields' => array_map(function ($field) {
+                    return [
+                        'id' => $field->id,
+                        'type' => $field->type->value,
+                        'name' => $field->name,
+                        'options' => $field->options,
+                        'value' => $field->value,
+                    ];
+                }, $dto->fields),
+                'created_at' => $dto->createdAt,
+                'updated_at' => $dto->updatedAt,
+            ];
+        }
+
+        // Legacy support: Handle Eloquent models (for show() method)
         return [
             'id' => $this->id,
             'sku' => $this->sku,

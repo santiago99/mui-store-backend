@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\DTO\ProductSearchCriteria;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\IndexProductRequest;
 use App\Http\Resources\ProductFilterResource;
@@ -9,10 +10,15 @@ use App\Http\Resources\ProductResource;
 use App\Models\Category;
 use App\Models\Product;
 use App\Services\ProductFilterAggregator;
+use App\Services\ProductSearchService;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class ProductController extends Controller
 {
+    public function __construct(
+        private ProductSearchService $searchService
+    ) {}
+
     /**
      * Display a listing of the resource.
      */
@@ -30,13 +36,22 @@ class ProductController extends Controller
             $filters = [];
         }
 
-        // Build filtered query (before pagination)
-        $filteredQuery = Product::with('category', 'brand'/* , 'fieldValues.productField' */)
-            ->defaultFilter($requestParams)
-            ->extendedFilter($filters);
+        // Create search criteria DTO
+        $criteria = new ProductSearchCriteria(
+            page: $requestParams['page'],
+            perPage: $requestParams['per_page'],
+            categoryId: $requestParams['category_id'] ?? null,
+            brandId: $requestParams['brand_id'] ?? null,
+            brandSlug: $requestParams['brand_slug'] ?? null,
+            priceMin: $requestParams['price_min'] ?? null,
+            priceMax: $requestParams['price_max'] ?? null,
+            sortBy: $requestParams['sort_by'],
+            sortDirection: $requestParams['sort_direction'],
+            filters: $filters,
+        );
 
-        // Get paginated results
-        $products = (clone $filteredQuery)->paginate($requestParams['per_page']);
+        // Search using service
+        $products = $this->searchService->search($criteria);
 
         $response = ProductResource::collection($products);
 
@@ -47,6 +62,11 @@ class ProductController extends Controller
             $productClass = $category?->productClass;
 
             if ($productClass) {
+                // Rebuild query for filter aggregation (needed for ProductFilterAggregator)
+                $filteredQuery = Product::with('category', 'brand')
+                    ->defaultFilter($requestParams)
+                    ->extendedFilter($filters);
+
                 $aggregator = new ProductFilterAggregator($filteredQuery);
                 $filterData = $aggregator->aggregateAll($productClass);
 
