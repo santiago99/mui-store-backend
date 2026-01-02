@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Contracts\ProductSearchEngine;
+use App\Services\EloquentProductSearchEngine;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\ServiceProvider;
@@ -13,7 +15,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(ProductSearchEngine::class, EloquentProductSearchEngine::class);
     }
 
     /**
