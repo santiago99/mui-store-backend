@@ -41,8 +41,9 @@ class EloquentProductSearchEngine implements ProductSearchEngine
             ->extendedFilter($criteria->filters);
 
         // Get paginated results
-        // TODO: Why clone? $paginatedResults = (clone $filteredQuery)->paginate($criteria->perPage, ['*'], 'page', $criteria->page);
-        $paginatedResults = $this->filteredQuery->paginate($criteria->perPage, ['*'], 'page', $criteria->page);
+        // We have to clone the query to not to apply pagination to original query
+        $paginatedResults = (clone $this->filteredQuery)->paginate($criteria->perPage, ['*'], 'page', $criteria->page);
+        //$paginatedResults = $this->filteredQuery->paginate($criteria->perPage, ['*'], 'page', $criteria->page);
 
         // Convert Eloquent models to DTOs
         $productDTOs = $paginatedResults->getCollection()->map(function (Product $product) {
