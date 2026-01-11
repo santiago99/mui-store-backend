@@ -916,52 +916,13 @@ describe('Product API Filterins and sorting', function () {
                 expect($response->json('filters'))->toBeNull();
             });
 
-            test('filters respect applied brand filter', function () {
+            test('filters use facet isolation - brand filter shows all brands when price is filtered', function () {
                 $productClass = \App\Models\ProductClass::factory()->create();
                 $category = Category::factory()->create(['product_class_id' => $productClass->id]);
                 $brand1 = Brand::factory()->create(['name' => 'Brand One']);
                 $brand2 = Brand::factory()->create(['name' => 'Brand Two']);
 
-                // Products with different brands
-                Product::factory()->count(3)->create([
-                    'category_id' => $category->id,
-                    'brand_id' => $brand1->id,
-                    'price' => 50.00,
-                ]);
-                Product::factory()->count(2)->create([
-                    'category_id' => $category->id,
-                    'brand_id' => $brand2->id,
-                    'price' => 150.00,
-                ]);
-
-                // Request with brand filter applied
-                $response = $this->getJson("/api/v1/products?category_id={$category->id}&brand_id={$brand1->id}");
-
-                $response->assertSuccessful();
-
-                $filters = $response->json('filters');
-                $brandFilter = collect($filters)->firstWhere('id', -1);
-                $priceFilter = collect($filters)->firstWhere('id', -2);
-
-                // Brand filter should only show Brand One with count 3
-                expect($brandFilter)->not->toBeNull();
-                $brandOptions = collect($brandFilter['filterOptions']);
-                expect($brandOptions->where('value', $brand1->id)->first()['count'])->toBe(3);
-                expect($brandOptions->where('value', $brand2->id)->first())->toBeNull();
-
-                // Price filter should reflect only filtered products (min=50, max=50)
-                expect($priceFilter)->not->toBeNull();
-                expect((float) $priceFilter['min'])->toBe(50.0);
-                expect((float) $priceFilter['max'])->toBe(50.0);
-            });
-
-            test('filters respect applied price filter', function () {
-                $productClass = \App\Models\ProductClass::factory()->create();
-                $category = Category::factory()->create(['product_class_id' => $productClass->id]);
-                $brand1 = Brand::factory()->create(['name' => 'Brand One']);
-                $brand2 = Brand::factory()->create(['name' => 'Brand Two']);
-
-                // Products with different prices
+                // Products with different brands and prices
                 Product::factory()->count(3)->create([
                     'category_id' => $category->id,
                     'brand_id' => $brand1->id,
@@ -982,21 +943,69 @@ describe('Product API Filterins and sorting', function () {
                 $brandFilter = collect($filters)->firstWhere('id', -1);
                 $priceFilter = collect($filters)->firstWhere('id', -2);
 
-                // Brand filter should only show Brand One (products with price <= 100)
+                // Brand filter should show ALL brands (facet isolation - brand filter excluded from query)
+                // But only brands that have products in the price range
                 expect($brandFilter)->not->toBeNull();
                 $brandOptions = collect($brandFilter['filterOptions']);
+                // Brand One should be present (has products with price <= 100)
+                expect($brandOptions->where('value', $brand1->id)->first())->not->toBeNull();
                 expect($brandOptions->where('value', $brand1->id)->first()['count'])->toBe(3);
+                // Brand Two should NOT be present (no products with price <= 100)
                 expect($brandOptions->where('value', $brand2->id)->first())->toBeNull();
 
-                // Price filter should reflect only filtered products
+                // Price filter should show full range (facet isolation - price filter excluded)
+                // But only for products that match other filters (none in this case, so all products)
                 expect($priceFilter)->not->toBeNull();
                 expect((float) $priceFilter['min'])->toBe(50.0);
-                expect((float) $priceFilter['max'])->toBe(50.0);
+                expect((float) $priceFilter['max'])->toBe(150.0); // Full range, not filtered range
             });
 
-            test('filters respect applied product field filter', function () {
+            test('filters use facet isolation - price filter shows full range when brand is filtered', function () {
                 $productClass = \App\Models\ProductClass::factory()->create();
                 $category = Category::factory()->create(['product_class_id' => $productClass->id]);
+                $brand1 = Brand::factory()->create(['name' => 'Brand One']);
+                $brand2 = Brand::factory()->create(['name' => 'Brand Two']);
+
+                // Products with different brands and prices
+                Product::factory()->count(3)->create([
+                    'category_id' => $category->id,
+                    'brand_id' => $brand1->id,
+                    'price' => 50.00,
+                ]);
+                Product::factory()->count(2)->create([
+                    'category_id' => $category->id,
+                    'brand_id' => $brand2->id,
+                    'price' => 150.00,
+                ]);
+
+                // Request with brand filter applied (only Brand One)
+                $response = $this->getJson("/api/v1/products?category_id={$category->id}&brand_id={$brand1->id}");
+
+                $response->assertSuccessful();
+
+                $filters = $response->json('filters');
+                $brandFilter = collect($filters)->firstWhere('id', -1);
+                $priceFilter = collect($filters)->firstWhere('id', -2);
+
+                // Brand filter should show ALL brands (facet isolation - brand filter excluded)
+                expect($brandFilter)->not->toBeNull();
+                $brandOptions = collect($brandFilter['filterOptions']);
+                // Both brands should be present
+                expect($brandOptions->where('value', $brand1->id)->first())->not->toBeNull();
+                expect($brandOptions->where('value', $brand2->id)->first())->not->toBeNull();
+
+                // Price filter should show full range (facet isolation - price filter excluded)
+                // But only for products that match other filters (Brand One in this case)
+                expect($priceFilter)->not->toBeNull();
+                expect((float) $priceFilter['min'])->toBe(50.0);
+                expect((float) $priceFilter['max'])->toBe(150.0); // Full range, not just Brand One's range
+            });
+
+            test('filters use facet isolation - product field filter shows all values when other filters applied', function () {
+                $productClass = \App\Models\ProductClass::factory()->create();
+                $category = Category::factory()->create(['product_class_id' => $productClass->id]);
+                $brand1 = Brand::factory()->create(['name' => 'Brand One']);
+                $brand2 = Brand::factory()->create(['name' => 'Brand Two']);
                 $productField = ProductField::factory()->create([
                     'type' => ProductFieldType::String,
                 ]);
@@ -1008,11 +1017,94 @@ describe('Product API Filterins and sorting', function () {
                     'filter_weight' => 1,
                 ]);
 
-                $product1 = Product::factory()->create(['category_id' => $category->id]);
-                $product2 = Product::factory()->create(['category_id' => $category->id]);
-                $product3 = Product::factory()->create(['category_id' => $category->id]);
+                // Products with different brands and field values
+                $product1 = Product::factory()->create([
+                    'category_id' => $category->id,
+                    'brand_id' => $brand1->id,
+                    'price' => 50.00,
+                ]);
+                $product2 = Product::factory()->create([
+                    'category_id' => $category->id,
+                    'brand_id' => $brand1->id,
+                    'price' => 75.00,
+                ]);
+                $product3 = Product::factory()->create([
+                    'category_id' => $category->id,
+                    'brand_id' => $brand2->id,
+                    'price' => 100.00,
+                ]);
 
                 // Create field values
+                ProductFieldValue::factory()->create([
+                    'product_id' => $product1->id,
+                    'product_field_id' => $productField->id,
+                    'value_string' => 'Value1',
+                ]);
+                ProductFieldValue::factory()->create([
+                    'product_id' => $product2->id,
+                    'product_field_id' => $productField->id,
+                    'value_string' => 'Value2',
+                ]);
+                ProductFieldValue::factory()->create([
+                    'product_id' => $product3->id,
+                    'product_field_id' => $productField->id,
+                    'value_string' => 'Value1',
+                ]);
+
+                // Request with brand filter applied (only Brand One)
+                $response = $this->getJson("/api/v1/products?category_id={$category->id}&brand_id={$brand1->id}");
+
+                $response->assertSuccessful();
+
+                $filters = $response->json('filters');
+                $fieldFilter = collect($filters)->firstWhere('id', $productField->id);
+
+                // Field filter should show ALL values (facet isolation - field filter excluded)
+                // But only values that exist in products matching other filters (Brand One)
+                expect($fieldFilter)->not->toBeNull();
+                $fieldOptions = collect($fieldFilter['filterOptions']);
+                // Value1 should be present (product1 has it)
+                expect($fieldOptions->where('value', 'Value1')->first())->not->toBeNull();
+                expect($fieldOptions->where('value', 'Value1')->first()['count'])->toBe(1);
+                // Value2 should be present (product2 has it)
+                expect($fieldOptions->where('value', 'Value2')->first())->not->toBeNull();
+                expect($fieldOptions->where('value', 'Value2')->first()['count'])->toBe(1);
+            });
+
+            test('filters use facet isolation - brand and price filters show all values when product field is filtered', function () {
+                $productClass = \App\Models\ProductClass::factory()->create();
+                $category = Category::factory()->create(['product_class_id' => $productClass->id]);
+                $brand1 = Brand::factory()->create(['name' => 'Brand One']);
+                $brand2 = Brand::factory()->create(['name' => 'Brand Two']);
+                $productField = ProductField::factory()->create([
+                    'type' => ProductFieldType::String,
+                ]);
+
+                // Attach field to product class as filterable
+                $productClass->filterableFields()->attach($productField->id, [
+                    'is_filter' => true,
+                    'filter_type' => \App\Enums\FilterType::Checkboxes->value,
+                    'filter_weight' => 1,
+                ]);
+
+                // Products with different brands, prices, and field values
+                $product1 = Product::factory()->create([
+                    'category_id' => $category->id,
+                    'brand_id' => $brand1->id,
+                    'price' => 50.00,
+                ]);
+                $product2 = Product::factory()->create([
+                    'category_id' => $category->id,
+                    'brand_id' => $brand2->id,
+                    'price' => 150.00,
+                ]);
+                $product3 = Product::factory()->create([
+                    'category_id' => $category->id,
+                    'brand_id' => $brand1->id,
+                    'price' => 200.00,
+                ]);
+
+                // Create field values - only product1 and product2 have 'Value1'
                 ProductFieldValue::factory()->create([
                     'product_id' => $product1->id,
                     'product_field_id' => $productField->id,
@@ -1030,30 +1122,29 @@ describe('Product API Filterins and sorting', function () {
                 ]);
 
                 // Request with field filter applied (only Value1)
-                // Note: We need to refresh the product class to get the filterable fields relationship
-                $productClass->refresh();
-                
-                // Use get() with query parameters - Laravel will handle array encoding
-                $response = $this->get("/api/v1/products?category_id={$category->id}&filters[{$productField->id}][]=Value1");
+                // Use JSON encoded filters in query string
+                $filters = json_encode([$productField->id => ['Value1']]);
+                $response = $this->getJson("/api/v1/products?category_id={$category->id}&filters={$filters}");
+
                 $response->assertSuccessful();
 
-                $responseData = $response->json();
-                
-                // Check if filters are in the response
-                if (! isset($responseData['filters'])) {
-                    // If filters validation fails due to JSON encoding issue, skip this assertion
-                    // This is a known limitation of passing complex filters in query strings
-                    $this->markTestSkipped('Filters parameter encoding issue in query string');
-                }
+                $responseFilters = $response->json('filters');
+                $brandFilter = collect($responseFilters)->firstWhere('id', -1);
+                $priceFilter = collect($responseFilters)->firstWhere('id', -2);
 
-                $responseFilters = $responseData['filters'];
-                $fieldFilter = collect($responseFilters)->firstWhere('id', $productField->id);
+                // Brand filter should show ALL brands (facet isolation - brand filter excluded)
+                // But only brands that have products matching the field filter
+                expect($brandFilter)->not->toBeNull();
+                $brandOptions = collect($brandFilter['filterOptions']);
+                // Both brands should be present (both have products with Value1)
+                expect($brandOptions->where('value', $brand1->id)->first())->not->toBeNull();
+                expect($brandOptions->where('value', $brand2->id)->first())->not->toBeNull();
 
-                // Field filter should only show Value1 with count 2 (filtered products)
-                expect($fieldFilter)->not->toBeNull();
-                $fieldOptions = collect($fieldFilter['filterOptions']);
-                expect($fieldOptions->where('value', 'Value1')->first()['count'])->toBe(2);
-                expect($fieldOptions->where('value', 'Value2')->first())->toBeNull();
+                // Price filter should show full range (facet isolation - price filter excluded)
+                // But only for products matching other filters (Value1)
+                expect($priceFilter)->not->toBeNull();
+                expect((float) $priceFilter['min'])->toBe(50.0);
+                expect((float) $priceFilter['max'])->toBe(150.0); // Full range of products with Value1
             });
         });
     });

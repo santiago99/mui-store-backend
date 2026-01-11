@@ -97,6 +97,7 @@ class Product extends Model
                 $query->where('brand_id', (int) $filter['brand_id']);
             }
         } elseif (isset($filter['brand_slug'])) {
+            // We can use whereHas since brand is always loaded with the product
             $query->whereHas('brand', function ($q) use ($filter) {
                 $q->where('slug', $filter['brand_slug']);
             });
@@ -129,34 +130,6 @@ class Product extends Model
 
         foreach ($filters as $key => $value) {
             $filterKey = (string) $key;
-
-            // Handle virtual filters
-            if ($filterKey === '-1') {
-                // Brand filter: array of brand_ids
-                if (is_array($value) && ! empty($value)) {
-                    $brandIds = array_unique(array_map('intval', $value));
-                    if (! empty($brandIds)) {
-                        $query->whereIn('brand_id', $brandIds);
-                    }
-                }
-
-                continue;
-            }
-
-            if ($filterKey === '-2') {
-                // Price filter: min/max range
-                if (is_array($value)) {
-                    if (isset($value['min']) && isset($value['max'])) {
-                        $query->whereBetween('price', [(float) $value['min'], (float) $value['max']]);
-                    } elseif (isset($value['min'])) {
-                        $query->where('price', '>=', (float) $value['min']);
-                    } elseif (isset($value['max'])) {
-                        $query->where('price', '<=', (float) $value['max']);
-                    }
-                }
-
-                continue;
-            }
 
             // Handle product field filters
             $productFieldId = (int) $filterKey;

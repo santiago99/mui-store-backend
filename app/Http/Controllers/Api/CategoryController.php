@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\CategoryResource;
 use App\Http\Resources\ProductFilterResource;
 use App\Models\Category;
-use App\Services\ProductFilterAggregator;
+use App\Services\EloquentProductSearchEngine;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
@@ -62,8 +62,7 @@ class CategoryController extends Controller
         // Create unfiltered query for all products in this category and its descendants
         $unfilteredQuery = $category->getAllProducts();
 
-        $aggregator = new ProductFilterAggregator($unfilteredQuery);
-        $filterData = $aggregator->aggregateAll($productClass);
+        $filterData = EloquentProductSearchEngine::aggregateAllForQuery($unfilteredQuery, $productClass);
 
         return ProductFilterResource::collection($filterData);
     }
